@@ -1,0 +1,2 @@
+# SithongQRGen
+Smart QR Generator
