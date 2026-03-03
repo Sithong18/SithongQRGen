@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QRUX — QR Code Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=Phetsarath+OT&display=swap" rel="stylesheet">
+<script>
+/* ── Inline QR Code Engine (UTF-8 aware, zero dependencies) ── */
+var QRLib=(function(){'use strict';
+var ECL={L:1,M:0,Q:3,H:2};
+var PP=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]];
+var G15=(1<<10)|(1<<8)|(1<<5)|(1<<4)|(1<<2)|(1<<1)|(1<<0),G18=(1<<12)|(1<<11)|(1<<10)|(1<<9)|(1<<8)|(1<<5)|(1<<2)|(1<<0),G15M=(1<<14)|(1<<12)|(1<<10)|(1<<4)|(1<<1);
+var EX=new Array(256),LG=new Array(256);
+for(var i=0;i<8;i++)EX[i]=1<<i;for(var i=8;i<256;i++)EX[i]=EX[i-4]^EX[i-5]^EX[i-6]^EX[i-8];for(var i=0;i<255;i++)LG[EX[i]]=i;
+function ge(n){while(n<0)n+=255;while(n>=256)n-=255;return EX[n];}function gl(n){return LG[n];}
+function bd(d){var r=0;while(d){r++;d>>>=1;}return r;}
+function bti(d){var b=d<<10;while(bd(b)-bd(G15)>=0)b^=(G15<<(bd(b)-bd(G15)));return((d<<10)|b)^G15M;}
+function btn(d){var b=d<<12;while(bd(b)-bd(G18)>=0)b^=(G18<<(bd(b)-bd(G18)));return(d<<12)|b;}
+function Poly(n,s){var o=0;while(o<n.length&&n[o]==0)o++;this.n=new Array(n.length-o+s);for(var i=0;i<n.length-o;i++)this.n[i]=n[i+o];}
+Poly.prototype={g:function(i){return this.n[i];},l:function(){return this.n.length;},
+mul:function(e){var n=new Array(this.l()+e.l()-1);for(var i=0;i<this.l();i++)for(var j=0;j<e.l();j++)n[i+j]^=ge(gl(this.g(i))+gl(e.g(j)));return new Poly(n,0);},
+mod:function(e){if(this.l()-e.l()<0)return this;var r=gl(this.g(0))-gl(e.g(0));var n=[];for(var i=0;i<this.l();i++)n[i]=this.g(i);for(var i=0;i<e.l();i++)n[i]^=ge(gl(e.g(i))+r);return new Poly(n,0).mod(e);}};
+function ecp(l){var a=new Poly([1],0);for(var i=0;i<l;i++)a=a.mul(new Poly([1,ge(i)],0));return a;}
+var RST=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]];
+function rsb(tn,ecl){var ei=ecl===ECL.L?0:ecl===ECL.M?1:ecl===ECL.Q?2:3;var t=RST[(tn-1)*4+ei]||RST[(tn-1)*4+1];var o=[];for(var i=0;i<t.length;i+=3)for(var j=0;j<t[i];j++)o.push({tot:t[i+1],dat:t[i+2]});return o;}
+function BB(){this.b=[];this.l=0;}BB.prototype={get:function(i){return((this.b[i>>3]>>>(7-i%8))&1)==1;},put:function(n,l){for(var i=0;i<l;i++)this.pb(((n>>>(l-i-1))&1)==1);},pb:function(b){var i=this.l>>3;if(this.b.length<=i)this.b.push(0);if(b)this.b[i]|=(0x80>>>(this.l%8));this.l++;}};
+function utf8(s){var b=[];for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);if(c<0x80){b.push(c);}else if(c<0x800){b.push(0xC0|(c>>6));b.push(0x80|(c&0x3F));}else if(c>=0xD800&&c<=0xDBFF&&i+1<s.length){var d=s.charCodeAt(i+1);if(d>=0xDC00&&d<=0xDFFF){var cp=0x10000+((c-0xD800)<<10)+(d-0xDC00);i++;b.push(0xF0|(cp>>18));b.push(0x80|((cp>>12)&0x3F));b.push(0x80|((cp>>6)&0x3F));b.push(0x80|(cp&0x3F));}}else{b.push(0xE0|(c>>12));b.push(0x80|((c>>6)&0x3F));b.push(0x80|(c&0x3F));}}return b;}
+function lb(tn){return tn<10?8:16;}
+function cdata(tn,ecl,bytes){
+  var rb=rsb(tn,ecl),bb=new BB(),tot=0;
+  bb.put(0x4,4);bb.put(bytes.length,lb(tn));
+  for(var i=0;i<bytes.length;i++)bb.put(bytes[i],8);
+  for(var i=0;i<rb.length;i++)tot+=rb[i].dat;
+  if(bb.l>tot*8)throw'ov';
+  if(bb.l+4<=tot*8)bb.put(0,4);
+  while(bb.l%8)bb.pb(false);
+  while(bb.l<tot*8){bb.put(0xEC,8);if(bb.l<tot*8)bb.put(0x11,8);}
+  var off=0,mdc=0,mec=0,dcd=[],ecd=[];
+  rb.forEach(function(blk){var a=[];for(var i=0;i<blk.dat;i++)a.push(0xff&bb.b[i+off]);off+=blk.dat;mdc=Math.max(mdc,blk.dat);dcd.push(a);});
+  dcd.forEach(function(dc,ri){var ec=rb[ri].tot-rb[ri].dat,rp=ecp(ec),raw=dc.slice();while(raw.length<dc.length+rp.l()-1)raw.push(0);var mp=new Poly(raw,rp.l()-1).mod(rp);var a=new Array(rp.l()-1);for(var i=0;i<a.length;i++){var mi=i+mp.l()-a.length;a[i]=mi>=0?mp.g(mi):0;}mec=Math.max(mec,ec);ecd.push(a);});
+  var tot2=0;rb.forEach(function(b){tot2+=b.tot;});var data=new Array(tot2),idx=0;
+  for(var i=0;i<mdc;i++)for(var r=0;r<rb.length;r++)if(i<dcd[r].length)data[idx++]=dcd[r][i];
+  for(var i=0;i<mec;i++)for(var r=0;r<rb.length;r++)if(i<ecd[r].length)data[idx++]=ecd[r][i];
+  return data;
+}
+function gm(p,r,c){switch(p){case 0:return(r+c)%2==0;case 1:return r%2==0;case 2:return c%3==0;case 3:return(r+c)%3==0;case 4:return(Math.floor(r/2)+Math.floor(c/3))%2==0;case 5:return(r*c)%2+(r*c)%3==0;case 6:return((r*c)%2+(r*c)%3)%2==0;case 7:return((r*c)%3+(r+c)%2)%2==0;}}
+function lp(mod,mc){var l=0;for(var r=0;r<mc;r++)for(var c=0;c<mc;c++){var sc=0,dk=mod[r][c];for(var dr=-1;dr<=1;dr++)for(var dc=-1;dc<=1;dc++){if(r+dr<0||mc<=r+dr||c+dc<0||mc<=c+dc||(!dr&&!dc))continue;if(dk==mod[r+dr][c+dc])sc++;}if(sc>5)l+=3+sc-5;}for(var r=0;r<mc-1;r++)for(var c=0;c<mc-1;c++){var k=0;if(mod[r][c])k++;if(mod[r+1][c])k++;if(mod[r][c+1])k++;if(mod[r+1][c+1])k++;if(!k||k==4)l+=3;}for(var r=0;r<mc;r++)for(var c=0;c<mc-6;c++)if(mod[r][c]&&!mod[r][c+1]&&mod[r][c+2]&&mod[r][c+3]&&mod[r][c+4]&&!mod[r][c+5]&&mod[r][c+6])l+=40;for(var c=0;c<mc;c++)for(var r=0;r<mc-6;r++)if(mod[r][c]&&!mod[r+1][c]&&mod[r+2][c]&&mod[r+3][c]&&mod[r+4][c]&&!mod[r+5][c]&&mod[r+6][c])l+=40;var dk=0;for(var c=0;c<mc;c++)for(var r=0;r<mc;r++)if(mod[r][c])dk++;l+=Math.abs(100*dk/mc/mc-50)/5*10;return l;}
+function mi(tn,ecl,data,test,mask){
+  var mc=tn*4+17,mod=[];for(var i=0;i<mc;i++){mod[i]=[];for(var j=0;j<mc;j++)mod[i][j]=null;}
+  function probe(r,c){for(var dr=-1;dr<=7;dr++){if(r+dr<0||mc<=r+dr)continue;for(var dc=-1;dc<=7;dc++){if(c+dc<0||mc<=c+dc)continue;mod[r+dr][c+dc]=((dr>=0&&dr<=6&&(dc==0||dc==6))||(dc>=0&&dc<=6&&(dr==0||dr==6))||(dr>=2&&dr<=4&&dc>=2&&dc<=4));}}}
+  probe(0,0);probe(mc-7,0);probe(0,mc-7);
+  for(var r=8;r<mc-8;r++)if(mod[r][6]==null)mod[r][6]=(r%2==0);
+  for(var c=8;c<mc-8;c++)if(mod[6][c]==null)mod[6][c]=(c%2==0);
+  var pp=PP[tn-1];for(var pi=0;pi<pp.length;pi++)for(var pj=0;pj<pp.length;pj++){var pr=pp[pi],pc=pp[pj];if(mod[pr][pc]!=null)continue;for(var dr=-2;dr<=2;dr++)for(var dc=-2;dc<=2;dc++)mod[pr+dr][pc+dc]=(dr==-2||dr==2||dc==-2||dc==2||(dr==0&&dc==0));}
+  var bi=bti((ecl<<3)|mask);for(var i=0;i<15;i++){var m=!test&&((bi>>i)&1)==1;if(i<6)mod[i][8]=m;else if(i<8)mod[i+1][8]=m;else mod[mc-15+i][8]=m;}for(var i=0;i<15;i++){var m=!test&&((bi>>i)&1)==1;if(i<8)mod[8][mc-i-1]=m;else if(i<9)mod[8][15-i]=m;else mod[8][15-i-1]=m;}mod[mc-8][8]=!test;
+  if(tn>=7){var bn=btn(tn);for(var i=0;i<18;i++){var m=!test&&((bn>>i)&1)==1;mod[Math.floor(i/3)][i%3+mc-8-3]=m;mod[i%3+mc-8-3][Math.floor(i/3)]=m;}}
+  var inc=-1,row=mc-1,bi2=7,by=0;for(var col=mc-1;col>0;col-=2){if(col==6)col--;while(true){for(var cc=0;cc<2;cc++){if(mod[row][col-cc]==null){var dk=false;if(by<data.length)dk=((data[by]>>>bi2)&1)==1;if(gm(mask,row,col-cc))dk=!dk;mod[row][col-cc]=dk;bi2--;if(bi2==-1){by++;bi2=7;}}}row+=inc;if(row<0||mc<=row){row-=inc;inc=-inc;break;}}}
+  return mod;
+}
+function mk(tn,ecl,data){var best=0,bestL=Infinity;for(var m=0;m<8;m++){var mod=mi(tn,ecl,data,true,m);var l=lp(mod,tn*4+17);if(l<bestL){bestL=l;best=m;}}return mi(tn,ecl,data,false,best);}
+var CAP=[[17,14,11,7],[32,26,20,14],[53,42,32,24],[78,62,46,34],[106,84,60,44],[134,106,74,58],[154,122,86,64],[192,152,108,84],[230,180,130,98],[271,213,151,119],[321,251,177,137],[367,287,203,155],[425,331,241,177],[458,362,258,194],[520,412,292,220],[586,450,322,250],[644,504,364,280],[718,560,394,310],[792,624,442,338],[858,666,482,382],[929,711,509,403],[1003,779,565,439],[1091,857,611,461],[1171,911,661,511],[1273,997,715,535],[1367,1059,751,593],[1465,1125,805,625],[1528,1190,868,658],[1628,1264,908,698],[1732,1370,982,742],[1840,1452,1030,790],[1952,1538,1112,842],[2068,1628,1168,898],[2188,1722,1228,958],[2303,1809,1283,983],[2431,1911,1351,1051],[2563,1989,1423,1093],[2699,2099,1499,1139],[2809,2213,1579,1219],[2953,2331,1663,1273]];
+function at(bytes,ecl){var ei=ecl===ECL.L?0:ecl===ECL.M?1:ecl===ECL.Q?2:3;for(var i=0;i<CAP.length;i++)if(CAP[i][ei]>=bytes.length)return i+1;return -1;}
+return{
+  drawCanvas:function(text,opts){
+    opts=opts||{};
+    var eclStr=opts.errorCorrectionLevel||'M',eclMap={L:ECL.L,M:ECL.M,Q:ECL.Q,H:ECL.H},ecl=eclMap[eclStr]||ECL.M;
+    var size=opts.width||256,margin=opts.margin!=null?opts.margin:2,dark=opts.dark||'#000',light=opts.light||'#fff';
+    var bytes=utf8(text),tn=at(bytes,ecl);
+    if(tn<0){tn=at(bytes,ECL.L);if(tn<0)return null;ecl=ECL.L;}
+    var data=cdata(tn,ecl,bytes),mod=mk(tn,ecl,data),mc=tn*4+17;
+    var ts=Math.max(1,Math.floor(size/(mc+margin*2))),as=ts*(mc+margin*2),off=margin*ts;
+    var cv=document.createElement('canvas');cv.width=as;cv.height=as;
+    var ctx=cv.getContext('2d');ctx.fillStyle=light;ctx.fillRect(0,0,as,as);ctx.fillStyle=dark;
+    for(var r=0;r<mc;r++)for(var c=0;c<mc;c++)if(mod[r][c])ctx.fillRect(c*ts+off,r*ts+off,ts,ts);
+    return cv;
+  }
+};
+})();
+</script>
+<style>
+:root {
+  --gold:#c9a84c;--gold-light:#e8c97a;--gold-dim:#8a6a2a;--gold-pale:rgba(201,168,76,0.12);
+  --bg:#05070f;--bg2:#0a0d1a;--bg3:#0f1222;--bg4:#141729;
+  --glass:rgba(255,255,255,0.03);--glass-border:rgba(201,168,76,0.18);--glass-border-dim:rgba(255,255,255,0.07);
+  --text:#ede8dc;--text-dim:#7a7567;--text-mid:#a09880;
+  --sidebar-w:270px;--green:#4cba7a;--red:#c94c4c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;cursor:none}
+
+/* ── Lao Font Rule — EVERYTHING Lao uses Phetsarath OT ── */
+.lang-lao, .lang-lao *, .lang-lao input, .lang-lao textarea,
+.lang-lao label, .lang-lao .form-label, .lang-lao .form-hint,
+.lang-lao .menu-text, .lang-lao .sidebar-section-label,
+.lang-lao .form-header-title, .lang-lao .form-header-sub,
+.lang-lao .gen-btn, .lang-lao .dl-btn, .lang-lao .meta-key,
+.lang-lao .preview-label, .lang-lao .style-section-head,
+.lang-lao .seg-btn, .lang-lao .header-nav a, .lang-lao .header-cta,
+.lang-lao .lao-tab, .lang-lao .lao-sample-btn, .lang-lao .lao-picker-title,
+.lang-lao .hist-type, .lang-lao .hist-content,
+.lang-lao [data-t], .lang-lao [data-ph], .lang-lao [data-hint] {
+  font-family: 'Phetsarath OT', serif !important;
+}
+.lang-lao input::placeholder, .lang-lao textarea::placeholder {
+  font-family: 'Phetsarath OT', serif !important;
+}
+.lang-lao .logo-text {
+  font-family: 'Phetsarath OT', serif !important;
+}
+/* Always Phetsarath for Lao text content regardless of lang mode */
+.lao-always {
+  font-family: 'Phetsarath OT', serif !important;
+  line-height: 2 !important;
+}
+.lao-char-btn {
+  font-family: 'Phetsarath OT', serif !important;
+}
+
+/* ── Cursor ── */
+.cursor{position:fixed;width:10px;height:10px;background:var(--gold);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .15s,height .15s;mix-blend-mode:difference}
+.cursor-ring{position:fixed;width:32px;height:32px;border:1px solid rgba(201,168,76,0.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .25s,height .25s}
+
+/* ── BG ── */
+.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(201,168,76,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(201,168,76,0.03) 1px,transparent 1px);background-size:56px 56px;animation:gridDrift 25s linear infinite}
+@keyframes gridDrift{to{background-position:56px 56px}}
+.bg-orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
+.orb1{width:600px;height:600px;background:rgba(201,168,76,0.07);top:-200px;left:-150px;animation:orb 14s ease-in-out infinite alternate}
+.orb2{width:450px;height:450px;background:rgba(76,126,201,0.06);bottom:-100px;right:-50px;animation:orb 18s ease-in-out infinite alternate-reverse}
+@keyframes orb{from{transform:translate(0,0) scale(1)}to{transform:translate(50px,40px) scale(1.1)}}
+
+/* ── Header ── */
+header{position:fixed;top:0;left:0;right:0;height:64px;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:0 32px 0 24px;background:rgba(5,7,15,0.8);backdrop-filter:blur(24px) saturate(1.4);border-bottom:1px solid var(--glass-border)}
+.logo-wrap{display:flex;align-items:center;gap:14px}
+.logo-icon{width:36px;height:36px;flex-shrink:0}
+.logo-text{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;letter-spacing:5px;text-transform:uppercase;background:linear-gradient(135deg,var(--gold-light),var(--gold),var(--gold-dim));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-right{display:flex;align-items:center;gap:18px}
+.header-nav{display:flex;gap:24px}
+.header-nav a{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);text-decoration:none;transition:color .25s;cursor:none}
+.header-nav a:hover{color:var(--gold)}
+.header-cta{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:var(--bg);padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:none;cursor:none;border-radius:3px;transition:opacity .25s,transform .2s;box-shadow:0 4px 20px rgba(201,168,76,0.3)}
+.header-cta:hover{opacity:.85;transform:translateY(-1px)}
+
+/* ── LANG TOGGLE BUTTON ── */
+.lang-toggle-btn {
+  display:flex;align-items:center;gap:0;
+  border:1px solid var(--glass-border);border-radius:6px;overflow:hidden;flex-shrink:0;
+}
+.lang-opt {
+  padding:7px 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;
+  background:transparent;border:none;color:var(--text-dim);cursor:none;
+  transition:all .2s;
+}
+.lang-opt + .lang-opt { border-left:1px solid var(--glass-border-dim); }
+.lang-opt.active { background:rgba(201,168,76,0.18);color:var(--gold); }
+.lang-opt:hover:not(.active){background:var(--glass);color:var(--text)}
+.lang-opt.lao-opt { font-family:'Phetsarath OT',serif !important; font-size:13px; }
+
+/* ── Layout ── */
+.app-shell{position:relative;z-index:1;display:grid;grid-template-columns:var(--sidebar-w) 1fr 380px;min-height:calc(100vh - 64px);margin-top:64px}
+
+/* ── Sidebar ── */
+.sidebar{position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;overflow-x:hidden;background:var(--bg2);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+.sidebar-section-label{padding:20px 20px 10px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);font-weight:600;border-top:1px solid var(--glass-border-dim)}
+.sidebar-section-label:first-child{border-top:none}
+.menu-item{display:flex;align-items:center;gap:13px;padding:11px 20px;cursor:none;border:none;background:transparent;color:var(--text-mid);transition:all .22s;position:relative;overflow:hidden;text-align:left;width:100%;font-family:'DM Sans',sans-serif}
+.menu-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);transform:scaleY(0);transform-origin:center;transition:transform .22s}
+.menu-item:hover{background:var(--glass);color:var(--text)}
+.menu-item:hover::before{transform:scaleY(0.6)}
+.menu-item.active{background:linear-gradient(90deg,rgba(201,168,76,0.13),rgba(201,168,76,0.02));color:var(--gold)}
+.menu-item.active::before{transform:scaleY(1)}
+.menu-icon{width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--glass);border:1px solid var(--glass-border-dim);transition:all .22s}
+.menu-item.active .menu-icon{background:rgba(201,168,76,0.15);border-color:rgba(201,168,76,0.35);box-shadow:0 0 14px rgba(201,168,76,0.15)}
+.menu-icon svg{width:16px;height:16px;transition:all .22s}
+.menu-item:hover .menu-icon svg,.menu-item.active .menu-icon svg{stroke:var(--gold)}
+.menu-text{font-size:13px;font-weight:500;letter-spacing:.3px}
+.menu-badge{margin-left:auto;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:100px;background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.25);font-weight:600}
+
+/* ── Form Area ── */
+.form-area{overflow-y:auto;padding:36px 36px 60px;scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.form-area::-webkit-scrollbar{width:3px}
+.form-area::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+.form-header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+.form-header-icon{width:48px;height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05));border:1px solid var(--glass-border);box-shadow:0 0 20px rgba(201,168,76,0.1)}
+.form-header-icon svg{width:22px;height:22px;stroke:var(--gold)}
+.form-header-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;line-height:1.1}
+.form-header-sub{font-size:12px;color:var(--text-dim);margin-top:3px;letter-spacing:.3px}
+.form-group{margin-bottom:22px}
+.form-label{display:block;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:9px;font-weight:600}
+.form-input,.form-textarea,.form-select{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--glass-border-dim);border-radius:8px;padding:13px 16px;font-family:'DM Sans',sans-serif;font-size:14px;transition:border-color .25s,box-shadow .25s,background .2s;outline:none;appearance:none;cursor:none}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--gold);background:var(--bg4);box-shadow:0 0 0 3px rgba(201,168,76,0.08)}
+.form-input::placeholder,.form-textarea::placeholder{color:var(--text-dim)}
+.form-textarea{resize:vertical;min-height:110px;line-height:1.65}
+.form-select option{background:var(--bg2);color:var(--text)}
+.form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a6a2a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-hint{font-size:11px;color:var(--text-dim);margin-top:7px;line-height:1.55}
+.form-divider{height:1px;background:var(--glass-border-dim);margin:28px 0;position:relative}
+.form-divider::after{content:attr(data-label);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);padding:0 14px;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim)}
+.seg-control{display:flex;gap:0;border:1px solid var(--glass-border-dim);border-radius:8px;overflow:hidden}
+.seg-btn{flex:1;padding:10px 8px;background:transparent;border:none;color:var(--text-dim);font-size:12px;font-weight:500;cursor:none;transition:all .2s;font-family:'DM Sans',sans-serif;letter-spacing:.5px}
+.seg-btn+.seg-btn{border-left:1px solid var(--glass-border-dim)}
+.seg-btn.active{background:rgba(201,168,76,0.15);color:var(--gold);font-weight:600}
+.seg-btn:hover:not(.active){background:var(--glass);color:var(--text)}
+.color-field{display:flex;align-items:center;gap:10px}
+.color-swatch{width:42px;height:42px;border-radius:8px;border:1px solid var(--glass-border-dim);cursor:none;position:relative;overflow:hidden;flex-shrink:0;transition:border-color .2s,box-shadow .2s}
+.color-swatch:hover{border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,0.2)}
+.color-swatch-bg{position:absolute;inset:0;pointer-events:none}
+.color-swatch input[type="color"]{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);border:none;background:transparent;cursor:pointer;opacity:0}
+.range-wrap{display:flex;align-items:center;gap:14px}
+.form-range{flex:1;-webkit-appearance:none;appearance:none;height:3px;background:var(--bg4);border-radius:2px;outline:none;cursor:none}
+.form-range::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--gold);cursor:none;box-shadow:0 0 8px rgba(201,168,76,0.6);transition:transform .2s}
+.form-range::-webkit-slider-thumb:hover{transform:scale(1.25)}
+.range-val{font-family:'Space Mono',monospace;font-size:12px;color:var(--gold);min-width:46px;text-align:right}
+.presets-row{display:flex;gap:8px;flex-wrap:wrap}
+.preset-swatch{width:32px;height:32px;border-radius:6px;cursor:none;border:2px solid transparent;transition:transform .2s,border-color .2s,box-shadow .2s}
+.preset-swatch:hover{transform:scale(1.18);border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.3)}
+.gen-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--gold-light),var(--gold),#9a7030);color:var(--bg);border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;cursor:none;position:relative;overflow:hidden;transition:transform .2s,box-shadow .3s;box-shadow:0 6px 24px rgba(201,168,76,0.35);margin-top:6px}
+.gen-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(201,168,76,0.5)}
+.gen-btn:active{transform:translateY(0)}
+.gen-btn-shimmer{position:absolute;top:0;left:-100%;width:70%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);animation:shimmer 2.5s infinite}
+@keyframes shimmer{to{left:160%}}
+.style-section-head{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:18px}
+.style-section-head::before,.style-section-head::after{content:'';flex:1;height:1px;background:var(--glass-border-dim)}
+.form-check{display:flex;align-items:center;gap:10px;cursor:none}
+.form-check input[type="checkbox"]{width:17px;height:17px;appearance:none;background:var(--bg3);border:1px solid var(--glass-border-dim);border-radius:4px;cursor:none;position:relative;flex-shrink:0;transition:all .2s}
+.form-check input[type="checkbox"]:checked{background:var(--gold);border-color:var(--gold)}
+.form-check input[type="checkbox"]:checked::after{content:'';position:absolute;top:2px;left:5px;width:5px;height:9px;border:2px solid var(--bg);border-top:none;border-left:none;transform:rotate(40deg)}
+.form-check label{font-size:13px;color:var(--text-dim);cursor:none}
+.type-panel{display:none}
+.type-panel.active{display:block}
+
+/* ── Preview ── */
+.preview-area{position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;padding:28px 24px 40px;background:var(--bg2);border-left:1px solid var(--glass-border);display:flex;flex-direction:column;gap:20px;scrollbar-width:thin;scrollbar-color:var(--gold-dim) transparent}
+.preview-area::-webkit-scrollbar{width:3px}
+.preview-area::-webkit-scrollbar-thumb{background:var(--gold-dim)}
+.preview-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);font-weight:600;display:flex;align-items:center;gap:8px}
+.preview-label::after{content:'';flex:1;height:1px;background:var(--glass-border-dim)}
+.qr-frame{width:100%;aspect-ratio:1;background:#fff;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,0.6),0 0 0 1px rgba(201,168,76,0.15);transition:box-shadow .3s,transform .3s}
+.qr-frame:hover{box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 0 2px rgba(201,168,76,0.4);transform:translateY(-2px)}
+.qr-frame-corner{position:absolute;width:18px;height:18px;border-color:var(--gold);border-style:solid;opacity:0.5}
+.qr-frame-corner.tl{top:8px;left:8px;border-width:2px 0 0 2px}
+.qr-frame-corner.tr{top:8px;right:8px;border-width:2px 2px 0 0}
+.qr-frame-corner.bl{bottom:8px;left:8px;border-width:0 0 2px 2px}
+.qr-frame-corner.br{bottom:8px;right:8px;border-width:0 2px 2px 0}
+#qr-output{display:flex;align-items:center;justify-content:center}
+#qr-output canvas,#qr-output img{border-radius:6px;max-width:90%;max-height:90%}
+.qr-placeholder-inner{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px}
+.qr-placeholder-inner svg{opacity:0.18;width:72px;height:72px;stroke:#666}
+.qr-placeholder-inner p{font-size:12px;color:#999;text-align:center;line-height:1.6;max-width:150px}
+.meta-card{background:var(--bg3);border:1px solid var(--glass-border-dim);border-radius:10px;overflow:hidden}
+.meta-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--glass-border-dim)}
+.meta-row:last-child{border-bottom:none}
+.meta-key{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim)}
+.meta-val{font-family:'Space Mono',monospace;font-size:11px;color:var(--gold)}
+.meta-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(76,186,122,.5)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(76,186,122,0)}}
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dl-btn{padding:11px 8px;background:var(--bg3);border:1px solid var(--glass-border-dim);border-radius:8px;color:var(--text-mid);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:none;transition:all .22s;text-align:center;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px}
+.dl-btn svg{width:13px;height:13px;flex-shrink:0}
+.dl-btn:hover{border-color:var(--gold-dim);color:var(--gold);background:var(--gold-pale)}
+.dl-btn.primary{grid-column:span 2;background:var(--gold-pale);border-color:rgba(201,168,76,0.35);color:var(--gold);font-size:12px;padding:13px}
+.dl-btn.primary:hover{background:rgba(201,168,76,0.2);border-color:var(--gold)}
+.history-mini{display:flex;flex-direction:column;gap:6px}
+.hist-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border-radius:8px;border:1px solid var(--glass-border-dim);cursor:none;transition:all .22s}
+.hist-item:hover{border-color:var(--gold-dim);background:var(--bg4)}
+.hist-thumb{width:34px;height:34px;background:#fff;border-radius:5px;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hist-thumb img{width:30px;height:30px}
+.hist-info{flex:1;min-width:0}
+.hist-type{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.hist-content{font-size:11px;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.hist-actions{display:flex;gap:4px}
+.hist-mini-btn{width:26px;height:26px;background:transparent;border:1px solid var(--glass-border-dim);border-radius:5px;cursor:none;color:var(--text-dim);font-size:11px;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:'DM Sans',sans-serif}
+.hist-mini-btn:hover{border-color:var(--gold-dim);color:var(--gold);background:var(--gold-pale)}
+.toast{position:fixed;bottom:32px;right:32px;z-index:1000;background:var(--bg3);border:1px solid rgba(201,168,76,0.5);border-radius:10px;padding:14px 22px;font-size:13px;color:var(--gold);box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 20px rgba(201,168,76,0.1);transform:translateY(80px) scale(.95);opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:10px}
+.toast.show{transform:translateY(0) scale(1);opacity:1}
+
+/* ── Lao Char Picker ── */
+.lao-picker{background:var(--bg3);border:1px solid var(--glass-border-dim);border-radius:10px;padding:14px;margin-bottom:18px}
+.lao-picker-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:10px;font-family:'Phetsarath OT',serif !important}
+.lao-picker-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.lao-tab{font-size:12px;padding:4px 10px;border-radius:4px;border:1px solid var(--glass-border-dim);background:transparent;color:var(--text-dim);cursor:none;transition:all .2s;font-family:'Phetsarath OT',serif !important}
+.lao-tab.active{background:rgba(201,168,76,0.15);color:var(--gold);border-color:rgba(201,168,76,0.3)}
+.lao-tab:hover:not(.active){background:var(--glass);color:var(--text)}
+.lao-chars{display:flex;flex-wrap:wrap;gap:4px}
+.lao-char-btn{font-family:'Phetsarath OT',serif !important;font-size:18px;line-height:1;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:var(--bg4);border:1px solid var(--glass-border-dim);border-radius:6px;cursor:none;color:var(--text);transition:all .18s}
+.lao-char-btn:hover{background:rgba(201,168,76,0.15);border-color:var(--gold-dim);color:var(--gold);transform:scale(1.12)}
+.lao-char-btn:active{transform:scale(0.96)}
+.lao-samples{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.lao-sample-btn{font-family:'Phetsarath OT',serif !important;font-size:13px;padding:5px 12px;background:var(--bg3);border:1px solid var(--glass-border-dim);border-radius:6px;cursor:none;color:var(--text-mid);transition:all .2s;line-height:1.8}
+.lao-sample-btn:hover{background:rgba(201,168,76,0.12);border-color:var(--gold-dim);color:var(--gold)}
+
+/* Lao textarea */
+.lao-textarea{font-family:'Phetsarath OT',serif !important;font-size:15px !important;line-height:2 !important}
+.lao-textarea::placeholder{font-family:'Phetsarath OT',serif !important}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease both}
+
+
+/* ══════════════════════════════════════════════════════
+   FULL RESPONSIVE LAYOUT — desktop → tablet → mobile
+══════════════════════════════════════════════════════ */
+
+/* 1400px+ wide desktop */
+@media(min-width:1400px){
+  :root{--sidebar-w:280px}
+  .app-shell{grid-template-columns:var(--sidebar-w) 1fr 420px}
+}
+
+/* 1100-1399: standard laptop/desktop */
+@media(max-width:1399px) and (min-width:1101px){
+  :root{--sidebar-w:250px}
+  .app-shell{grid-template-columns:var(--sidebar-w) 1fr 360px}
+}
+
+/* 1100px and below: tablet landscape / small laptop
+   Hide right preview panel — show QR inline under form */
+@media(max-width:1100px){
+  .app-shell{
+    grid-template-columns:var(--sidebar-w) 1fr;
+    grid-template-rows:auto;
+  }
+  .preview-area{
+    display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-start;
+    gap:16px;padding:20px 24px 32px;
+    position:static;height:auto;
+    border-left:none;border-top:1px solid var(--glass-border);
+    grid-column:2;grid-row:2;
+  }
+  .preview-area>*{flex:1;min-width:180px}
+  .qr-frame{max-width:240px;min-width:180px;flex-shrink:0}
+  .dl-grid{min-width:200px}
+}
+
+/* 900px: tablet portrait */
+@media(max-width:900px){
+  :root{--sidebar-w:200px}
+  .form-area{padding:24px 20px 80px}
+  .form-row{grid-template-columns:1fr}
+  .preview-area{grid-column:1/-1}
+}
+
+/* 767px and below: all phones + phablets */
+@media(max-width:767px){
+  :root{--sidebar-w:0px}
+  body{cursor:auto}
+  .cursor,.cursor-ring{display:none !important}
+
+  /* Compact header */
+  header{padding:0 14px;height:54px}
+  .logo-text{font-size:16px;letter-spacing:3px}
+  .header-nav{display:none}
+  .header-cta{padding:7px 14px;font-size:10px;letter-spacing:1px}
+  .app-shell{
+    grid-template-columns:1fr;
+    grid-template-rows:auto;
+    margin-top:54px;
+    min-height:calc(100vh - 54px);
+  }
+
+  /* Sidebar → scrollable horizontal icon tab-bar */
+  .sidebar{
+    position:sticky;top:54px;z-index:150;
+    height:auto;flex-direction:row;
+    overflow-x:auto;overflow-y:hidden;
+    border-right:none;border-bottom:1px solid var(--glass-border);
+    background:var(--bg2);
+    scrollbar-width:none;padding:2px 0 0;
+    grid-column:1;
+  }
+  .sidebar::-webkit-scrollbar{display:none}
+  .sidebar-section-label{display:none}
+  .menu-item{
+    flex-direction:column;gap:3px;
+    padding:7px 10px 8px;
+    min-width:62px;max-width:80px;flex-shrink:0;
+    border-radius:0;
+  }
+  .menu-item::before{
+    width:100%;height:2px;
+    top:auto;bottom:0;left:0;right:0;
+    transform:scaleX(0);transform-origin:center;
+  }
+  .menu-item.active::before{transform:scaleX(1)}
+  .menu-item:hover::before{transform:scaleX(0.5)}
+  .menu-icon{width:26px;height:26px;border-radius:6px}
+  .menu-icon svg{width:13px;height:13px}
+  .menu-text{font-size:9px;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;line-height:1.2}
+  .menu-badge{display:none}
+
+  /* Form */
+  .form-area{padding:18px 14px 100px;grid-column:1;order:2}
+  .form-header{margin-bottom:18px;gap:12px}
+  .form-header-icon{width:38px;height:38px}
+  .form-header-icon svg{width:18px;height:18px}
+  .form-header-title{font-size:20px}
+  .form-row{grid-template-columns:1fr}
+  .seg-control{flex-wrap:wrap}
+  .seg-btn{flex:1;min-width:80px;padding:9px 6px;font-size:11px}
+
+  /* Preview → full width below form */
+  .preview-area{
+    display:flex;flex-direction:column;align-items:center;
+    position:static;height:auto;
+    border-left:none;border-top:1px solid var(--glass-border);
+    padding:20px 14px 32px;gap:16px;
+    grid-column:1;order:3;
+  }
+  .qr-frame{width:min(75vw,280px);max-width:280px}
+  .dl-grid{width:100%;max-width:320px}
+  .meta-card{width:100%;max-width:320px}
+  .history-mini{width:100%;max-width:320px}
+
+  /* Generate button fixed at bottom */
+  .gen-btn-wrap{
+    position:fixed;bottom:0;left:0;right:0;
+    z-index:200;padding:10px 14px 14px;
+    background:linear-gradient(to top,var(--bg) 70%,transparent);
+  }
+  .gen-btn{margin:0}
+  /* When no gen-btn-wrap exists, just give form bottom padding */
+  .form-area{padding-bottom:80px}
+
+  /* Lao char picker responsive */
+  .lao-picker-tabs{gap:4px}
+  .lao-tab{font-size:11px;padding:4px 8px}
+  .lao-char-btn{width:34px;height:34px;font-size:15px}
+  .lao-samples{gap:4px}
+}
+
+/* 479px and below: small phones */
+@media(max-width:479px){
+  header{height:50px}
+  .app-shell{margin-top:50px;min-height:calc(100vh - 50px)}
+  .logo-text{font-size:14px;letter-spacing:2px}
+  .lang-opt{padding:5px 9px;font-size:10px}
+  .form-header-title{font-size:18px}
+  .form-area{padding:14px 12px 90px}
+  .qr-frame{width:min(80vw,260px)}
+  .lao-char-btn{width:30px;height:30px;font-size:14px}
+  .menu-item{min-width:54px;padding:6px 6px 7px}
+  .menu-text{font-size:8px}
+}
+
+/* Prevent iOS Safari zoom on input focus (font-size >= 16px required) */
+@media(max-width:767px){
+  .form-input,.form-textarea,.form-select{font-size:16px !important}
+  .lang-lao .form-input,.lang-lao .form-textarea{font-size:16px !important}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:2px}
+
+</style>
+</head>
+<body>
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="toast" id="toast"><span>✦</span><span id="toast-msg"></span></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-wrap">
+    <svg class="logo-icon" viewBox="0 0 36 36" fill="none">
+      <rect x="2" y="2" width="12" height="12" rx="2" stroke="#c9a84c" stroke-width="1.8"/>
+      <rect x="4" y="4" width="8" height="8" rx="1" fill="#c9a84c" opacity=".35"/>
+      <rect x="22" y="2" width="12" height="12" rx="2" stroke="#c9a84c" stroke-width="1.8"/>
+      <rect x="24" y="4" width="8" height="8" rx="1" fill="#c9a84c" opacity=".35"/>
+      <rect x="2" y="22" width="12" height="12" rx="2" stroke="#c9a84c" stroke-width="1.8"/>
+      <rect x="4" y="24" width="8" height="8" rx="1" fill="#c9a84c" opacity=".35"/>
+      <rect x="22" y="22" width="5" height="5" rx="1" fill="#c9a84c"/>
+      <rect x="29" y="22" width="5" height="5" rx="1" fill="#c9a84c" opacity=".5"/>
+      <rect x="22" y="29" width="5" height="5" rx="1" fill="#c9a84c" opacity=".5"/>
+      <rect x="29" y="29" width="5" height="5" rx="1" fill="#c9a84c"/>
+    </svg>
+    <div class="logo-text" id="logoText">QR Sithong</div>
+  </div>
+  <div class="header-right">
+    <nav class="header-nav">
+      <a href="#" data-t="nav_gen">Generator</a>
+      <a href="#" data-t="nav_feat">Features</a>
+      <a href="#" data-t="nav_api">API</a>
+      <a href="#" data-t="nav_price">Pricing</a>
+    </nav>
+    <!-- LANGUAGE TOGGLE -->
+    <div class="lang-toggle-btn">
+      <button class="lang-opt active" id="btnEng" onclick="setLang('en')">ENG</button>
+      <button class="lang-opt lao-opt" id="btnLao" onclick="setLang('lo')">ລາວ</button>
+    </div>
+    <button class="header-cta" data-t="cta_free">Start Free</button>
+  </div>
+</header>
+
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-section-label" data-t="sec_links">Links & Web</div>
+  <button class="menu-item active" data-type="url" onclick="selectType('url',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+    <span class="menu-text" data-t="type_url">URL / Website</span>
+  </button>
+  <button class="menu-item" data-type="dynamic" onclick="selectType('dynamic',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+    <span class="menu-text" data-t="type_dynamic">Dynamic URL</span>
+    <span class="menu-badge">NEW</span>
+  </button>
+  <button class="menu-item" data-type="pdf" onclick="selectType('pdf',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+    <span class="menu-text" data-t="type_pdf">PDF Document</span>
+  </button>
+  <button class="menu-item" data-type="images" onclick="selectType('images',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+    <span class="menu-text" data-t="type_images">Image Gallery</span>
+  </button>
+  <button class="menu-item" data-type="video" onclick="selectType('video',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+    <span class="menu-text" data-t="type_video">Video Link</span>
+  </button>
+  <button class="menu-item" data-type="mp3" onclick="selectType('mp3',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+    <span class="menu-text" data-t="type_mp3">Audio / MP3</span>
+  </button>
+
+  <div class="sidebar-section-label" data-t="sec_contact">Contact & Identity</div>
+  <button class="menu-item" data-type="vcard" onclick="selectType('vcard',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+    <span class="menu-text" data-t="type_vcard">vCard</span>
+  </button>
+  <button class="menu-item" data-type="vcardplus" onclick="selectType('vcardplus',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+    <span class="menu-text" data-t="type_vcardplus">vCard Plus</span>
+    <span class="menu-badge">PRO</span>
+  </button>
+  <button class="menu-item" data-type="business" onclick="selectType('business',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+    <span class="menu-text" data-t="type_business">Business Page</span>
+  </button>
+
+  <div class="sidebar-section-label" data-t="sec_comm">Communication</div>
+  <button class="menu-item" data-type="lao" onclick="selectType('lao',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg></span>
+    <span class="menu-text lao-always" data-t="type_lao">ພາສາລາວ (Lao)</span>
+    <span class="menu-badge lao-always">ລາວ</span>
+  </button>
+  <button class="menu-item" data-type="text" onclick="selectType('text',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
+    <span class="menu-text" data-t="type_text">Plain Text</span>
+  </button>
+  <button class="menu-item" data-type="email" onclick="selectType('email',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+    <span class="menu-text" data-t="type_email">E-Mail</span>
+  </button>
+  <button class="menu-item" data-type="sms" onclick="selectType('sms',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    <span class="menu-text" data-t="type_sms">SMS Message</span>
+  </button>
+
+  <div class="sidebar-section-label" data-t="sec_net">Network & Payment</div>
+  <button class="menu-item" data-type="wifi" onclick="selectType('wifi',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
+    <span class="menu-text" data-t="type_wifi">WiFi Network</span>
+  </button>
+  <button class="menu-item" data-type="bitcoin" onclick="selectType('bitcoin',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2L8.29 4.26m5.908 1.042.348-1.97M7.48 20.364l3.126-17.727"/></svg></span>
+    <span class="menu-text" data-t="type_bitcoin">Crypto Payment</span>
+  </button>
+
+  <div class="sidebar-section-label" data-t="sec_social">Social Media</div>
+  <button class="menu-item" data-type="twitter" onclick="selectType('twitter',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16M4 20L20 4"/><path d="M20 4H16.5L4 20h3.5"/></svg></span>
+    <span class="menu-text" data-t="type_twitter">X / Twitter</span>
+  </button>
+  <button class="menu-item" data-type="facebook" onclick="selectType('facebook',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></span>
+    <span class="menu-text" data-t="type_facebook">Facebook</span>
+  </button>
+  <button class="menu-item" data-type="social" onclick="selectType('social',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+    <span class="menu-text" data-t="type_social">Social Media Hub</span>
+  </button>
+  <button class="menu-item" data-type="appstore" onclick="selectType('appstore',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+    <span class="menu-text" data-t="type_appstore">App Store</span>
+  </button>
+
+  <div class="sidebar-section-label" data-t="sec_biz">Business Tools</div>
+  <button class="menu-item" data-type="coupon" onclick="selectType('coupon',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+    <span class="menu-text" data-t="type_coupon">Coupon / Offer</span>
+  </button>
+  <button class="menu-item" data-type="feedback" onclick="selectType('feedback',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+    <span class="menu-text" data-t="type_feedback">Feedback Form</span>
+  </button>
+  <button class="menu-item" data-type="rating" onclick="selectType('rating',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+    <span class="menu-text" data-t="type_rating">Review / Rating</span>
+  </button>
+  <button class="menu-item" data-type="event" onclick="selectType('event',this)">
+    <span class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#7a7567" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+    <span class="menu-text" data-t="type_event">Event / Calendar</span>
+  </button>
+</aside>
+
+<!-- FORM AREA -->
+<main class="form-area" id="formArea">
+  <div class="form-header fade-up">
+    <div class="form-header-icon" id="formHeaderIcon"></div>
+    <div>
+      <div class="form-header-title" id="formHeaderTitle">URL / Website</div>
+      <div class="form-header-sub" id="formHeaderSub">Link any website or web address</div>
+    </div>
+  </div>
+
+  <!-- URL -->
+  <div class="type-panel active" id="panel-url">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_website_url">Website URL</label>
+      <input type="url" class="form-input" id="input-url" data-ph="ph_website_url" placeholder="https://yourwebsite.com" oninput="liveGenerate()" autocomplete="off">
+      <div class="form-hint" data-t="hint_website_url">Enter any valid URL — websites, landing pages, social profiles</div>
+    </div>
+  </div>
+
+  <!-- TEXT -->
+  <div class="type-panel" id="panel-text">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_text_content">Text Content</label>
+      <textarea class="form-textarea" id="input-text" data-ph="ph_text_content" placeholder="Type anything — any language, emoji, symbols..." oninput="liveGenerate()" rows="6"></textarea>
+      <div class="form-hint" data-t="hint_text_content">Full Unicode — any language, script, emoji, symbols, all freely mixed</div>
+    </div>
+  </div>
+
+  <!-- LAO -->
+  <div class="type-panel" id="panel-lao">
+    <div class="form-group">
+      <div class="lao-picker">
+        <div class="lao-picker-title" data-t="lao_picker_title">ຕາຕະລາງຕົວໜັງສືລາວ — Lao Character Picker</div>
+        <div class="lao-picker-tabs" id="laoCatTabs">
+          <button class="lao-tab active" onclick="showLaoCat('consonants',this)" data-t="lao_tab_con">ພະຍັນຊະນະ</button>
+          <button class="lao-tab" onclick="showLaoCat('vowels',this)" data-t="lao_tab_vow">ສະຫຼະ</button>
+          <button class="lao-tab" onclick="showLaoCat('tones',this)" data-t="lao_tab_tone">ວັນນະຍຸດ</button>
+          <button class="lao-tab" onclick="showLaoCat('numbers',this)" data-t="lao_tab_num">ຕົວເລກ</button>
+          <button class="lao-tab" onclick="showLaoCat('special',this)" data-t="lao_tab_sp">ພິເສດ</button>
+        </div>
+        <div class="lao-chars" id="laoCharGrid"></div>
+      </div>
+      <label class="form-label lao-always" data-t="lbl_lao_text">ຂຽນຂໍ້ຄວາມລາວ</label>
+      <textarea class="form-textarea lao-textarea lao-always" id="lao-text" data-ph="ph_lao_text"
+        placeholder="ຂຽນຂໍ້ຄວາມລາວທີ່ນີ້... ສາມາດຂຽນພາສາລາວ, ອັງກິດ, ຕົວເລກ, emoji 🎉..."
+        oninput="liveGenerate()" rows="6" lang="lo"></textarea>
+      <div class="form-hint lao-always" data-t="hint_lao_text">ຮອງຮັບທຸກພາສາ — ລາວ, ອັງກິດ, ຈີນ, ອາຣັບ, emoji ແລະ ສັນຍາລັກ</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label lao-always" data-t="lbl_lao_samples">ປະໂຫຍກຕົວຢ່າງ</label>
+      <div class="lao-samples">
+        <button class="lao-sample-btn" onclick="insertLaoSample('ສະບາຍດີ 🙏')">ສະບາຍດີ 🙏</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('ຂໍຂອບໃຈ')">ຂໍຂອບໃຈ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('ສ.ປ.ປ. ລາວ')">ສ.ປ.ປ. ລາວ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('ນະຄອນຫຼວງວຽງຈັນ')">ວຽງຈັນ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('ຮ້ານອາຫານ')">ຮ້ານອາຫານ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('☎ ໂທ:')">☎ ໂທ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('📍 ທີ່ຢູ່:')">📍 ທີ່ຢູ່</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('🌐 ເວັບໄຊ:')">🌐 ເວັບໄຊ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('💰 ລາຄາ:')">💰 ລາຄາ</button>
+        <button class="lao-sample-btn" onclick="insertLaoSample('ຂໍ້ສະເໜີ:')">ຂໍ້ສະເໜີ</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label lao-always" data-t="lbl_lao_sub">ຂໍ້ມູນເພີ່ມເຕີມ <span style="color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:10px">(optional)</span></label>
+      <input type="text" class="form-input lao-textarea lao-always" id="lao-sub" data-ph="ph_lao_sub"
+        placeholder="URL, ເບີໂທ, ຫຼື ຂໍ້ຄວາມ​ອື່ນ..." oninput="liveGenerate()" lang="lo">
+    </div>
+  </div>
+
+  <!-- VCARD -->
+  <div class="type-panel" id="panel-vcard">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_first_name">First Name</label>
+        <input type="text" class="form-input" id="vc-first" data-ph="ph_first_name" placeholder="Your first name" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_last_name">Last Name</label>
+        <input type="text" class="form-input" id="vc-last" data-ph="ph_last_name" placeholder="Your last name" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_phone">Phone Number</label>
+      <input type="tel" class="form-input" id="vc-phone" data-ph="ph_phone" placeholder="Your phone number" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_email">Email Address</label>
+      <input type="email" class="form-input" id="vc-email" data-ph="ph_email" placeholder="your@email.com" oninput="liveGenerate()">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_company">Company / Org</label>
+        <input type="text" class="form-input" id="vc-org" data-ph="ph_company" placeholder="Your company name" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_job_title">Job Title</label>
+        <input type="text" class="form-input" id="vc-title" data-ph="ph_job_title" placeholder="Your job title" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_website">Website</label>
+      <input type="url" class="form-input" id="vc-url" data-ph="ph_website" placeholder="https://yourwebsite.com" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_address">Address</label>
+      <input type="text" class="form-input" id="vc-addr" data-ph="ph_address" placeholder="Your street, city, country" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- EMAIL -->
+  <div class="type-panel" id="panel-email">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_recipient_email">Recipient Email</label>
+      <input type="email" class="form-input" id="em-to" data-ph="ph_recipient_email" placeholder="recipient@email.com" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_subject">Subject Line</label>
+      <input type="text" class="form-input" id="em-sub" data-ph="ph_subject" placeholder="Your email subject" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_message_body">Message Body</label>
+      <textarea class="form-textarea" id="em-body" data-ph="ph_message_body" placeholder="Your email message..." oninput="liveGenerate()"></textarea>
+    </div>
+  </div>
+
+  <!-- SMS -->
+  <div class="type-panel" id="panel-sms">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_phone_number">Phone Number</label>
+      <input type="tel" class="form-input" id="sms-num" data-ph="ph_phone_number" placeholder="Recipient phone number" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_sms_message">Pre-filled Message</label>
+      <textarea class="form-textarea" id="sms-msg" data-ph="ph_sms_message" placeholder="Your SMS message content..." oninput="liveGenerate()"></textarea>
+    </div>
+  </div>
+
+  <!-- WIFI -->
+  <div class="type-panel" id="panel-wifi">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_ssid">Network Name (SSID)</label>
+      <input type="text" class="form-input" id="wifi-ssid" data-ph="ph_ssid" placeholder="Your WiFi network name" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_wifi_pass">Password</label>
+      <input type="text" class="form-input" id="wifi-pass" data-ph="ph_wifi_pass" placeholder="Your WiFi password" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_security">Security Type</label>
+      <div class="seg-control">
+        <button class="seg-btn active" onclick="setWifiSec('WPA',this)">WPA / WPA2</button>
+        <button class="seg-btn" onclick="setWifiSec('WEP',this)">WEP</button>
+        <button class="seg-btn" data-t="seg_none" onclick="setWifiSec('',this)">None (Open)</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="form-check">
+        <input type="checkbox" id="wifi-hidden">
+        <label for="wifi-hidden" data-t="lbl_hidden_net">Hidden network — SSID not broadcast</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- BITCOIN -->
+  <div class="type-panel" id="panel-bitcoin">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_crypto">Cryptocurrency</label>
+      <select class="form-select" id="btc-currency" onchange="liveGenerate()">
+        <option value="BTC">₿ Bitcoin (BTC)</option>
+        <option value="ETH">Ξ Ethereum (ETH)</option>
+        <option value="LTC">Ł Litecoin (LTC)</option>
+        <option value="DOGE">Ð Dogecoin (DOGE)</option>
+        <option value="USDT">₮ Tether (USDT)</option>
+        <option value="SOL">◎ Solana (SOL)</option>
+        <option value="BNB">BNB Chain (BNB)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_wallet">Wallet Address</label>
+      <input type="text" class="form-input" id="btc-addr" data-ph="ph_wallet" placeholder="Your wallet address" oninput="liveGenerate()" style="font-family:'Space Mono',monospace;font-size:12px">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_amount">Amount</label>
+        <input type="number" class="form-input" id="btc-amount" data-ph="ph_amount" placeholder="0.001" step="0.00001" min="0" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_pay_label">Payment Label</label>
+        <input type="text" class="form-input" id="btc-note" data-ph="ph_pay_label" placeholder="Invoice or label" oninput="liveGenerate()">
+      </div>
+    </div>
+  </div>
+
+  <!-- TWITTER -->
+  <div class="type-panel" id="panel-twitter">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_profile_url">Profile / Page URL</label>
+      <input type="url" class="form-input" id="tw-url" data-ph="ph_twitter_url" placeholder="https://twitter.com/yourusername" oninput="liveGenerate()">
+    </div>
+    <div class="form-divider" data-label="or pre-fill a tweet"></div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_tweet_text">Tweet Text</label>
+      <textarea class="form-textarea" id="tw-text" data-ph="ph_tweet_text" placeholder="Your tweet content..." oninput="liveGenerate()" rows="3"></textarea>
+    </div>
+  </div>
+
+  <!-- PDF -->
+  <div class="type-panel" id="panel-pdf">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_pdf_url">PDF File URL</label>
+      <input type="url" class="form-input" id="pdf-url" data-ph="ph_pdf_url" placeholder="https://example.com/document.pdf" oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_pdf_url">Direct link to any publicly accessible PDF document</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_doc_title">Document Title (optional)</label>
+      <input type="text" class="form-input" id="pdf-title" data-ph="ph_doc_title" placeholder="Your document title" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- MP3 -->
+  <div class="type-panel" id="panel-mp3">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_audio_url">Audio File URL</label>
+      <input type="url" class="form-input" id="mp3-url" data-ph="ph_audio_url" placeholder="https://example.com/audio.mp3" oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_audio_url">MP3, WAV, OGG, FLAC — any web-accessible audio file</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_track_title">Track Title</label>
+        <input type="text" class="form-input" id="mp3-title" data-ph="ph_track_title" placeholder="Your track name" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_artist">Artist Name</label>
+        <input type="text" class="form-input" id="mp3-artist" data-ph="ph_artist" placeholder="Artist name" oninput="liveGenerate()">
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGES -->
+  <div class="type-panel" id="panel-images">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_img_url">Image or Gallery URL</label>
+      <input type="url" class="form-input" id="img-url" data-ph="ph_img_url" placeholder="https://example.com/photo.jpg" oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_img_url">Single image, album, Google Photos, Flickr, or any image link</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_caption">Caption / Description</label>
+      <input type="text" class="form-input" id="img-caption" data-ph="ph_caption" placeholder="Your image description" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="type-panel" id="panel-video">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_video_url">Video URL</label>
+      <input type="url" class="form-input" id="vid-url" data-ph="ph_video_url" placeholder="https://youtube.com/watch?v=..." oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_video_url">YouTube, Vimeo, TikTok, Instagram Reels, or any video link</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_video_title">Video Title</label>
+      <input type="text" class="form-input" id="vid-title" data-ph="ph_video_title" placeholder="Your video title" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- APP STORE -->
+  <div class="type-panel" id="panel-appstore">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_app_name">App Name</label>
+      <input type="text" class="form-input" id="app-name" data-ph="ph_app_name" placeholder="Your app name" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_ios_url">App Store (iOS)</label>
+      <input type="url" class="form-input" id="app-ios" data-ph="ph_ios_url" placeholder="https://apps.apple.com/app/..." oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_android_url">Google Play (Android)</label>
+      <input type="url" class="form-input" id="app-android" data-ph="ph_android_url" placeholder="https://play.google.com/store/apps/..." oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_appstore">QR will route to correct store based on the user's device</div>
+    </div>
+  </div>
+
+  <!-- DYNAMIC -->
+  <div class="type-panel" id="panel-dynamic">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_target_url">Initial Target URL</label>
+      <input type="url" class="form-input" id="dyn-url" data-ph="ph_target_url" placeholder="https://yourlink.com" oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_dynamic_url">Dynamic QR codes let you change the destination URL after printing</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_campaign">Campaign Name</label>
+        <input type="text" class="form-input" id="dyn-name" data-ph="ph_campaign" placeholder="Summer 2025" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_utm">UTM Source</label>
+        <input type="text" class="form-input" id="dyn-utm" data-ph="ph_utm" placeholder="print, poster..." oninput="liveGenerate()">
+      </div>
+    </div>
+  </div>
+
+  <!-- FACEBOOK -->
+  <div class="type-panel" id="panel-facebook">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_fb_url">Facebook Page or Profile URL</label>
+      <input type="url" class="form-input" id="fb-url" data-ph="ph_fb_url" placeholder="https://facebook.com/yourpage" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- SOCIAL -->
+  <div class="type-panel" id="panel-social">
+    <div class="form-group">
+      <label class="form-label">Instagram</label>
+      <input type="url" class="form-input" id="soc-ig" data-ph="ph_instagram" placeholder="https://instagram.com/yourusername" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">LinkedIn</label>
+      <input type="url" class="form-input" id="soc-li" data-ph="ph_linkedin" placeholder="https://linkedin.com/in/yourprofile" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">YouTube</label>
+      <input type="url" class="form-input" id="soc-yt" data-ph="ph_youtube" placeholder="https://youtube.com/@yourchannel" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">TikTok</label>
+      <input type="url" class="form-input" id="soc-tt" data-ph="ph_tiktok" placeholder="https://tiktok.com/@yourusername" oninput="liveGenerate()">
+    </div>
+    <div class="form-hint" data-t="hint_social">First non-empty URL will be used for the QR code</div>
+  </div>
+
+  <!-- COUPON -->
+  <div class="type-panel" id="panel-coupon">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_brand">Brand / Company</label>
+      <input type="text" class="form-input" id="cp-brand" data-ph="ph_brand" placeholder="Your brand or store name" oninput="liveGenerate()">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_discount_type">Discount Type</label>
+        <select class="form-select" id="cp-type" onchange="liveGenerate()">
+          <option value="percent" data-t="opt_percent">Percentage Off %</option>
+          <option value="fixed" data-t="opt_fixed">Fixed Amount Off</option>
+          <option value="bogo" data-t="opt_bogo">Buy One Get One</option>
+          <option value="free" data-t="opt_free">Free Item / Gift</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_value">Value</label>
+        <input type="text" class="form-input" id="cp-val" data-ph="ph_value" placeholder="e.g. 20" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_coupon_code">Coupon Code</label>
+      <input type="text" class="form-input" id="cp-code" data-ph="ph_coupon_code" placeholder="SAVE20" oninput="liveGenerate()" style="text-transform:uppercase;font-family:'Space Mono',monospace;letter-spacing:2px">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_valid_until">Valid Until</label>
+        <input type="date" class="form-input" id="cp-exp" onchange="liveGenerate()" style="color-scheme:dark">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_redeem_url">Redemption URL</label>
+        <input type="url" class="form-input" id="cp-url" data-ph="ph_redeem_url" placeholder="https://shop.com/redeem" oninput="liveGenerate()">
+      </div>
+    </div>
+  </div>
+
+  <!-- VCARD PLUS -->
+  <div class="type-panel" id="panel-vcardplus">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_first_name">First Name</label>
+        <input type="text" class="form-input" id="vcp-first" data-ph="ph_first_name" placeholder="Your first name" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_last_name">Last Name</label>
+        <input type="text" class="form-input" id="vcp-last" data-ph="ph_last_name" placeholder="Your last name" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_job_title">Job Title</label>
+        <input type="text" class="form-input" id="vcp-title" data-ph="ph_job_title" placeholder="Your job title" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_company">Company</label>
+        <input type="text" class="form-input" id="vcp-org" data-ph="ph_company" placeholder="Your company name" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_phone">Phone</label>
+        <input type="tel" class="form-input" id="vcp-phone" data-ph="ph_phone" placeholder="Your phone number" oninput="liveGenerate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_email">Email</label>
+        <input type="email" class="form-input" id="vcp-email" data-ph="ph_email" placeholder="your@email.com" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_website">Website</label>
+      <input type="url" class="form-input" id="vcp-web" data-ph="ph_website" placeholder="https://yourwebsite.com" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_photo_url">Profile Photo URL</label>
+      <input type="url" class="form-input" id="vcp-photo" data-ph="ph_photo_url" placeholder="https://yoursite.com/photo.jpg" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_bio">Bio / Note</label>
+      <textarea class="form-textarea" id="vcp-bio" data-ph="ph_bio" placeholder="Your short professional bio..." oninput="liveGenerate()" rows="3"></textarea>
+    </div>
+  </div>
+
+  <!-- BUSINESS -->
+  <div class="type-panel" id="panel-business">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_biz_name">Business Name</label>
+      <input type="text" class="form-input" id="biz-name" data-ph="ph_biz_name" placeholder="Your business name" oninput="liveGenerate()">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_category">Category</label>
+        <select class="form-select" id="biz-cat" onchange="liveGenerate()">
+          <option data-t="opt_restaurant">Restaurant</option>
+          <option data-t="opt_retail">Retail</option>
+          <option data-t="opt_health">Healthcare</option>
+          <option data-t="opt_hotel">Hotel</option>
+          <option data-t="opt_services">Services</option>
+          <option data-t="opt_edu">Education</option>
+          <option data-t="opt_tech">Tech</option>
+          <option data-t="opt_other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_phone">Phone</label>
+        <input type="tel" class="form-input" id="biz-phone" data-ph="ph_phone" placeholder="Your business phone" oninput="liveGenerate()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_address">Address</label>
+      <input type="text" class="form-input" id="biz-addr" data-ph="ph_biz_address" placeholder="Your business address" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_website">Website</label>
+      <input type="url" class="form-input" id="biz-web" data-ph="ph_website" placeholder="https://yourbusiness.com" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_hours">Opening Hours</label>
+      <input type="text" class="form-input" id="biz-hours" data-ph="ph_hours" placeholder="Mon–Fri 9am–6pm, Sat 10am–4pm" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div class="type-panel" id="panel-feedback">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_feedback_url">Feedback Page URL</label>
+      <input type="url" class="form-input" id="fb2-url" data-ph="ph_feedback_url" placeholder="https://forms.google.com/..." oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_feedback_url">Google Forms, Typeform, SurveyMonkey, or any feedback URL</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_biz_name">Business / Product Name</label>
+      <input type="text" class="form-input" id="fb2-brand" data-ph="ph_biz_product" placeholder="Your business or product name" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- RATING -->
+  <div class="type-panel" id="panel-rating">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_review_platform">Review Platform</label>
+      <select class="form-select" id="rat-platform" onchange="liveGenerate()">
+        <option value="google">⭐ Google Reviews</option>
+        <option value="yelp">🔴 Yelp</option>
+        <option value="tripadvisor">🦉 TripAdvisor</option>
+        <option value="trustpilot">✅ Trustpilot</option>
+        <option value="airbnb">🏠 Airbnb</option>
+        <option value="custom" data-t="opt_custom_url">🔗 Custom URL</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_review_url">Review Page URL</label>
+      <input type="url" class="form-input" id="rat-url" data-ph="ph_review_url" placeholder="https://g.page/r/your-business/review" oninput="liveGenerate()">
+      <div class="form-hint" data-t="hint_review_url">Paste the direct review link from your chosen platform</div>
+    </div>
+  </div>
+
+  <!-- EVENT -->
+  <div class="type-panel" id="panel-event">
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_event_name">Event Name</label>
+      <input type="text" class="form-input" id="ev-name" data-ph="ph_event_name" placeholder="Your event name" oninput="liveGenerate()">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_start_dt">Start Date & Time</label>
+        <input type="datetime-local" class="form-input" id="ev-start" onchange="liveGenerate()" style="color-scheme:dark">
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_end_dt">End Date & Time</label>
+        <input type="datetime-local" class="form-input" id="ev-end" onchange="liveGenerate()" style="color-scheme:dark">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_venue">Location / Venue</label>
+      <input type="text" class="form-input" id="ev-loc" data-ph="ph_venue" placeholder="Event location or venue" oninput="liveGenerate()">
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_description">Description</label>
+      <textarea class="form-textarea" id="ev-desc" data-ph="ph_event_desc" placeholder="Event description or agenda..." oninput="liveGenerate()" rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_organizer_url">Organizer / URL</label>
+      <input type="url" class="form-input" id="ev-url" data-ph="ph_event_url" placeholder="https://event-page.com" oninput="liveGenerate()">
+    </div>
+  </div>
+
+  <!-- STYLE SECTION -->
+  <div style="margin-top:32px">
+    <div class="style-section-head" data-t="style_head">Appearance & Style</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_qr_color">QR Color</label>
+        <div class="color-field">
+          <div class="color-swatch"><div class="color-swatch-bg" id="fgBg" style="background:#000"></div><input type="color" id="qr-fg" value="#000000" oninput="syncColor('fg',this.value);liveGenerate()"></div>
+          <input type="text" class="form-input" id="fg-hex" value="#000000" placeholder="#000000" onchange="hexInput('fg')">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_bg_color">Background</label>
+        <div class="color-field">
+          <div class="color-swatch"><div class="color-swatch-bg" id="bgBg" style="background:#fff"></div><input type="color" id="qr-bg" value="#ffffff" oninput="syncColor('bg',this.value);liveGenerate()"></div>
+          <input type="text" class="form-input" id="bg-hex" value="#ffffff" placeholder="#ffffff" onchange="hexInput('bg')">
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" data-t="lbl_palettes">Quick Palettes</label>
+      <div class="presets-row">
+        <div class="preset-swatch" style="background:#000000" onclick="applyPreset('#000000','#ffffff')" title="Classic Black"></div>
+        <div class="preset-swatch" style="background:linear-gradient(135deg,#c9a84c,#8a6a2a)" onclick="applyPreset('#7a5c1e','#fffdf4')" title="Gold"></div>
+        <div class="preset-swatch" style="background:#1a1f3a" onclick="applyPreset('#1a1f3a','#f0f4ff')" title="Navy"></div>
+        <div class="preset-swatch" style="background:#7b0000" onclick="applyPreset('#7b0000','#fff5f5')" title="Crimson"></div>
+        <div class="preset-swatch" style="background:#0d4f2e" onclick="applyPreset('#0d4f2e','#f0fff6')" title="Forest"></div>
+        <div class="preset-swatch" style="background:#0a2a5e" onclick="applyPreset('#0a2a5e','#f0f8ff')" title="Ocean"></div>
+        <div class="preset-swatch" style="background:#3d0066" onclick="applyPreset('#3d0066','#fbf0ff')" title="Violet"></div>
+        <div class="preset-swatch" style="background:#1a1a1a" onclick="applyPreset('#1a1a1a','#f5f5f5')" title="Charcoal"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_ecl">Error Correction</label>
+        <select class="form-select" id="qr-ecl" onchange="liveGenerate()">
+          <option value="L">L — Low (7%)</option>
+          <option value="M" selected>M — Medium (15%)</option>
+          <option value="Q">Q — Quartile (25%)</option>
+          <option value="H">H — High (30%)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="lbl_size">Output Size: <span id="sizeVal" style="color:var(--gold);font-family:'Space Mono',monospace">256px</span></label>
+        <div class="range-wrap">
+          <input type="range" class="form-range" id="qr-size" min="128" max="512" step="32" value="256" oninput="document.getElementById('sizeVal').textContent=this.value+'px';liveGenerate()">
+        </div>
+      </div>
+    </div>
+    <button class="gen-btn" onclick="generateQR()">
+      <div class="gen-btn-shimmer"></div>
+      <span data-t="btn_generate">✦ &nbsp; Generate QR Code</span>
+    </button>
+  </div>
+</main>
+
+<!-- PREVIEW -->
+<aside class="preview-area">
+  <div class="preview-label" data-t="preview_live">Live Preview</div>
+  <div class="qr-frame" id="qrFrame">
+    <div class="qr-frame-corner tl"></div><div class="qr-frame-corner tr"></div>
+    <div class="qr-frame-corner bl"></div><div class="qr-frame-corner br"></div>
+    <div id="qr-output">
+      <div class="qr-placeholder-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="5" y="5" width="3" height="3" fill="currentColor" opacity=".4"/>
+          <rect x="16" y="5" width="3" height="3" fill="currentColor" opacity=".4"/>
+          <rect x="5" y="16" width="3" height="3" fill="currentColor" opacity=".4"/>
+          <rect x="14" y="14" width="3" height="3" rx=".5"/><rect x="18" y="14" width="3" height="3" rx=".5"/>
+          <rect x="14" y="18" width="3" height="3" rx=".5"/><rect x="18" y="18" width="3" height="3" rx=".5"/>
+        </svg>
+        <p data-t="placeholder_msg">Enter your content to preview</p>
+      </div>
+    </div>
+  </div>
+  <div class="meta-card" id="qrMeta" style="display:none">
+    <div class="meta-row">
+      <span class="meta-key" data-t="meta_status">Status</span>
+      <div style="display:flex;align-items:center;gap:6px"><div class="meta-dot"></div><span class="meta-val" style="color:var(--green);font-size:10px" data-t="meta_ready">READY</span></div>
+    </div>
+    <div class="meta-row"><span class="meta-key" data-t="meta_type">Type</span><span class="meta-val" id="meta-type">—</span></div>
+    <div class="meta-row"><span class="meta-key" data-t="meta_chars">Chars</span><span class="meta-val" id="meta-chars">—</span></div>
+    <div class="meta-row"><span class="meta-key" data-t="meta_size_lbl">Size</span><span class="meta-val" id="meta-size">—</span></div>
+    <div class="meta-row"><span class="meta-key" data-t="meta_ecl_lbl">ECL</span><span class="meta-val" id="meta-ecl">—</span></div>
+  </div>
+  <div>
+    <div class="preview-label" style="margin-bottom:12px" data-t="preview_download">Download</div>
+    <div class="dl-grid">
+      <button class="dl-btn primary" onclick="downloadQR('png')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-t="dl_png">Download PNG</span>
+      </button>
+      <button class="dl-btn" onclick="downloadQR('svg')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        SVG
+      </button>
+      <button class="dl-btn" onclick="downloadQR('jpeg')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        JPEG
+      </button>
+      <button class="dl-btn" onclick="copyQR()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span data-t="dl_copy">Copy</span>
+      </button>
+    </div>
+  </div>
+  <div id="historySection" style="display:none">
+    <div class="preview-label" style="margin-bottom:12px" data-t="preview_recent">Recent</div>
+    <div class="history-mini" id="historyList"></div>
+  </div>
+</aside>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// TRANSLATIONS — EN / LO
+// ══════════════════════════════════════════════════════
+const T = {
+  en: {
+    // Nav
+    nav_gen:'Generator', nav_feat:'Features', nav_api:'API', nav_price:'Pricing', cta_free:'Start Free',
+    // Sidebar sections
+    sec_links:'Links & Web', sec_contact:'Contact & Identity', sec_comm:'Communication',
+    sec_net:'Network & Payment', sec_social:'Social Media', sec_biz:'Business Tools',
+    // Type names
+    type_url:'URL / Website', type_dynamic:'Dynamic URL', type_pdf:'PDF Document',
+    type_images:'Image Gallery', type_video:'Video Link', type_mp3:'Audio / MP3',
+    type_vcard:'vCard', type_vcardplus:'vCard Plus', type_business:'Business Page',
+    type_lao:'ພາສາລາວ (Lao)', type_text:'Plain Text', type_email:'E-Mail',
+    type_sms:'SMS Message', type_wifi:'WiFi Network', type_bitcoin:'Crypto Payment',
+    type_twitter:'X / Twitter', type_facebook:'Facebook', type_social:'Social Media Hub',
+    type_appstore:'App Store', type_coupon:'Coupon / Offer', type_feedback:'Feedback Form',
+    type_rating:'Review / Rating', type_event:'Event / Calendar',
+    // Type meta (header title + subtitle)
+    meta_url_title:'URL / Website', meta_url_sub:'Link any website or web address',
+    meta_text_title:'Plain Text', meta_text_sub:'Any text, any language, emoji included',
+    meta_lao_title:'ພາສາລາວ — Lao Text', meta_lao_sub:'Phetsarath OT | ຂຽນໃນພາສາລາວ — Full Unicode',
+    meta_vcard_title:'vCard Contact', meta_vcard_sub:'Digital business card — scan to save contact',
+    meta_email_title:'E-Mail', meta_email_sub:'Opens mail app with pre-filled fields',
+    meta_sms_title:'SMS Message', meta_sms_sub:'Opens messaging app with pre-filled text',
+    meta_wifi_title:'WiFi Network', meta_wifi_sub:'Scan to join — no typing password',
+    meta_bitcoin_title:'Crypto Payment', meta_bitcoin_sub:'Accept cryptocurrency payments easily',
+    meta_twitter_title:'X / Twitter', meta_twitter_sub:'Profile link or pre-filled tweet',
+    meta_pdf_title:'PDF Document', meta_pdf_sub:'Link to any PDF file for download or view',
+    meta_mp3_title:'Audio / MP3', meta_mp3_sub:'Link to any audio track or podcast',
+    meta_images_title:'Image Gallery', meta_images_sub:'Link to photos, albums, or galleries',
+    meta_video_title:'Video Link', meta_video_sub:'YouTube, Vimeo, TikTok, and more',
+    meta_appstore_title:'App Store Link', meta_appstore_sub:'Route to iOS App Store or Google Play',
+    meta_dynamic_title:'Dynamic URL', meta_dynamic_sub:'Edit destination after printing',
+    meta_facebook_title:'Facebook Page', meta_facebook_sub:'Link to your Facebook profile or page',
+    meta_social_title:'Social Media Hub', meta_social_sub:'Link multiple social profiles',
+    meta_coupon_title:'Coupon / Offer', meta_coupon_sub:'Digital discount codes and promotions',
+    meta_vcardplus_title:'vCard Plus', meta_vcardplus_sub:'Rich contact with photo and bio',
+    meta_business_title:'Business Page', meta_business_sub:'Full business listing with hours & map',
+    meta_feedback_title:'Feedback Form', meta_feedback_sub:'Collect reviews and customer input',
+    meta_rating_title:'Review / Rating', meta_rating_sub:'Direct link to your review page',
+    meta_event_title:'Event / Calendar', meta_event_sub:'Add to calendar — save the date',
+    // Labels
+    lbl_website_url:'Website URL', lbl_text_content:'Text Content',
+    lbl_lao_text:'ຂຽນຂໍ້ຄວາມລາວ', lbl_lao_samples:'ປະໂຫຍກຕົວຢ່າງ', lbl_lao_sub:'Additional Info',
+    lbl_first_name:'First Name', lbl_last_name:'Last Name', lbl_phone:'Phone Number',
+    lbl_email:'Email Address', lbl_company:'Company / Org', lbl_job_title:'Job Title',
+    lbl_website:'Website', lbl_address:'Address', lbl_recipient_email:'Recipient Email',
+    lbl_subject:'Subject Line', lbl_message_body:'Message Body', lbl_phone_number:'Phone Number',
+    lbl_sms_message:'Pre-filled Message', lbl_ssid:'Network Name (SSID)', lbl_wifi_pass:'Password',
+    lbl_security:'Security Type', lbl_hidden_net:'Hidden network — SSID not broadcast',
+    lbl_crypto:'Cryptocurrency', lbl_wallet:'Wallet Address', lbl_amount:'Amount',
+    lbl_pay_label:'Payment Label', lbl_profile_url:'Profile / Page URL', lbl_tweet_text:'Tweet Text',
+    lbl_pdf_url:'PDF File URL', lbl_doc_title:'Document Title (optional)',
+    lbl_audio_url:'Audio File URL', lbl_track_title:'Track Title', lbl_artist:'Artist Name',
+    lbl_img_url:'Image or Gallery URL', lbl_caption:'Caption / Description',
+    lbl_video_url:'Video URL', lbl_video_title:'Video Title', lbl_app_name:'App Name',
+    lbl_ios_url:'App Store (iOS)', lbl_android_url:'Google Play (Android)',
+    lbl_target_url:'Initial Target URL', lbl_campaign:'Campaign Name', lbl_utm:'UTM Source',
+    lbl_fb_url:'Facebook Page or Profile URL', lbl_brand:'Brand / Company',
+    lbl_discount_type:'Discount Type', lbl_value:'Value', lbl_coupon_code:'Coupon Code',
+    lbl_valid_until:'Valid Until', lbl_redeem_url:'Redemption URL',
+    lbl_photo_url:'Profile Photo URL', lbl_bio:'Bio / Note', lbl_biz_name:'Business Name',
+    lbl_category:'Category', lbl_hours:'Opening Hours', lbl_feedback_url:'Feedback Page URL',
+    lbl_review_platform:'Review Platform', lbl_review_url:'Review Page URL',
+    lbl_event_name:'Event Name', lbl_start_dt:'Start Date & Time', lbl_end_dt:'End Date & Time',
+    lbl_venue:'Location / Venue', lbl_description:'Description', lbl_organizer_url:'Organizer / URL',
+    lbl_qr_color:'QR Color', lbl_bg_color:'Background', lbl_palettes:'Quick Palettes',
+    lbl_ecl:'Error Correction', lbl_size:'Output Size:',
+    // Placeholders
+    ph_website_url:'https://yourwebsite.com',
+    ph_text_content:'Type anything — any language, emoji 🎉, symbols ∞, mix freely...',
+    ph_lao_text:'ຂຽນຂໍ້ຄວາມລາວທີ່ນີ້... ສາມາດຂຽນພາສາລາວ, ອັງກິດ, ຕົວເລກ, emoji 🎉...',
+    ph_lao_sub:'URL, ເບີໂທ, ຫຼື ຂໍ້ຄວາມ​ອື່ນ...',
+    ph_first_name:'Your first name', ph_last_name:'Your last name',
+    ph_phone:'+856 20 XX XXX XXX', ph_email:'your@email.com',
+    ph_company:'Your company name', ph_job_title:'Your job title',
+    ph_website:'https://yourwebsite.com', ph_address:'Your street, city, country',
+    ph_recipient_email:'recipient@email.com', ph_subject:'Your email subject',
+    ph_message_body:'Your email message...',
+    ph_phone_number:'Recipient phone number', ph_sms_message:'Your SMS message content...',
+    ph_ssid:'Your WiFi network name', ph_wifi_pass:'Your WiFi password',
+    ph_wallet:'Your wallet address', ph_amount:'0.001', ph_pay_label:'Invoice or label',
+    ph_twitter_url:'https://twitter.com/yourusername', ph_tweet_text:'Your tweet content...',
+    ph_pdf_url:'https://example.com/document.pdf', ph_doc_title:'Your document title',
+    ph_audio_url:'https://example.com/audio.mp3', ph_track_title:'Your track name', ph_artist:'Artist name',
+    ph_img_url:'https://example.com/photo.jpg', ph_caption:'Your image description',
+    ph_video_url:'https://youtube.com/watch?v=...', ph_video_title:'Your video title',
+    ph_app_name:'Your app name', ph_ios_url:'https://apps.apple.com/app/...',
+    ph_android_url:'https://play.google.com/store/apps/...',
+    ph_target_url:'https://yourlink.com', ph_campaign:'Summer 2025', ph_utm:'print, poster...',
+    ph_fb_url:'https://facebook.com/yourpage', ph_brand:'Your brand or store name',
+    ph_value:'e.g. 20', ph_coupon_code:'SAVE20', ph_redeem_url:'https://shop.com/redeem',
+    ph_photo_url:'https://yoursite.com/photo.jpg', ph_bio:'Your short professional bio...',
+    ph_biz_name:'Your business name', ph_biz_address:'Your business address',
+    ph_hours:'Mon–Fri 9am–6pm, Sat 10am–4pm',
+    ph_feedback_url:'https://forms.google.com/...', ph_biz_product:'Your business or product name',
+    ph_review_url:'https://g.page/r/your-business/review',
+    ph_event_name:'Your event name', ph_venue:'Event location or venue',
+    ph_event_desc:'Event description or agenda...', ph_event_url:'https://event-page.com',
+    ph_instagram:'https://instagram.com/yourusername', ph_linkedin:'https://linkedin.com/in/yourprofile',
+    ph_youtube:'https://youtube.com/@yourchannel', ph_tiktok:'https://tiktok.com/@yourusername',
+    // Hints
+    hint_website_url:'Enter any valid URL — websites, landing pages, social profiles',
+    hint_text_content:'Full Unicode — any language, script, emoji, symbols, all freely mixed',
+    hint_lao_text:'ຮອງຮັບທຸກພາສາ — ລາວ, ອັງກິດ, ຈີນ, ອາຣັບ, emoji ແລະ ສັນຍາລັກ',
+    hint_pdf_url:'Direct link to any publicly accessible PDF document',
+    hint_audio_url:'MP3, WAV, OGG, FLAC — any web-accessible audio file',
+    hint_img_url:'Single image, album, Google Photos, Flickr, or any image link',
+    hint_video_url:'YouTube, Vimeo, TikTok, Instagram Reels, or any video link',
+    hint_appstore:'QR will route to correct store based on the user\'s device',
+    hint_dynamic_url:'Dynamic QR codes let you change the destination URL after printing',
+    hint_feedback_url:'Google Forms, Typeform, SurveyMonkey, or any feedback URL',
+    hint_review_url:'Paste the direct review link from your chosen platform',
+    hint_social:'First non-empty URL will be used for the QR code',
+    // Buttons & UI
+    btn_generate:'✦   Generate QR Code',
+    style_head:'Appearance & Style',
+    seg_none:'None (Open)',
+    opt_percent:'Percentage Off %', opt_fixed:'Fixed Amount Off', opt_bogo:'Buy One Get One', opt_free:'Free Item / Gift',
+    opt_restaurant:'Restaurant', opt_retail:'Retail', opt_health:'Healthcare', opt_hotel:'Hotel',
+    opt_services:'Services', opt_edu:'Education', opt_tech:'Tech', opt_other:'Other',
+    opt_custom_url:'🔗 Custom URL',
+    // Preview
+    preview_live:'Live Preview', preview_download:'Download', preview_recent:'Recent',
+    placeholder_msg:'Enter your content to preview',
+    meta_status:'Status', meta_ready:'READY', meta_type:'Type', meta_chars:'Chars',
+    meta_size_lbl:'Size', meta_ecl_lbl:'ECL',
+    dl_png:'Download PNG', dl_copy:'Copy',
+    // Lao picker
+    lao_picker_title:'ຕາຕະລາງຕົວໜັງສືລາວ — Lao Character Picker',
+    lao_tab_con:'ພະຍັນຊະນະ', lao_tab_vow:'ສະຫຼະ', lao_tab_tone:'ວັນນະຍຸດ',
+    lao_tab_num:'ຕົວເລກ', lao_tab_sp:'ພິເສດ',
+  },
+  lo: {
+    // Nav
+    nav_gen:'ສ້າງ QR', nav_feat:'ຄຸນສົມບັດ', nav_api:'API', nav_price:'ລາຄາ', cta_free:'ເລີ່ມຟຣີ',
+    // Sidebar sections
+    sec_links:'ລິ້ງ & ເວັບ', sec_contact:'ຂໍ້ມູນຕິດຕໍ່', sec_comm:'ການສື່ສານ',
+    sec_net:'ເຄືອຂ່າຍ & ການຊຳລະ', sec_social:'ສັງຄົມອອນໄລນ໌', sec_biz:'ເຄື່ອງມືທຸລະກິດ',
+    // Type names
+    type_url:'URL / ເວັບໄຊ', type_dynamic:'URL ແບບ Dynamic', type_pdf:'ເອກະສານ PDF',
+    type_images:'ຫ້ອງພາບ', type_video:'ລິ້ງວິດີໂອ', type_mp3:'ສຽງ / MP3',
+    type_vcard:'vCard ນາມບັດ', type_vcardplus:'vCard ພິເສດ', type_business:'ໜ້າທຸລະກິດ',
+    type_lao:'ພາສາລາວ', type_text:'ຂໍ້ຄວາມທົ່ວໄປ', type_email:'ອີເມລ',
+    type_sms:'ຂໍ້ຄວາມ SMS', type_wifi:'ເຄືອຂ່າຍ WiFi', type_bitcoin:'ການຊຳລະ Crypto',
+    type_twitter:'X / Twitter', type_facebook:'Facebook', type_social:'ສັງຄົມລວມ',
+    type_appstore:'App Store', type_coupon:'ຄູປ໋ອງ / ໂປໂມຊັ່ນ', type_feedback:'ຟອມຄຳຕິຊົມ',
+    type_rating:'ການໃຫ້ຄະແນນ', type_event:'ກິດຈະກຳ / ປະຕິທິນ',
+    // Type meta
+    meta_url_title:'URL / ເວັບໄຊ', meta_url_sub:'ໃສ່ທີ່ຢູ່ເວັບໄຊ ຫຼື ລິ້ງທຸກຊະນິດ',
+    meta_text_title:'ຂໍ້ຄວາມທົ່ວໄປ', meta_text_sub:'ທຸກພາສາ, ສັນຍາລັກ, emoji ລວມກັນໄດ້',
+    meta_lao_title:'ພາສາລາວ — ຂຽນລາວ', meta_lao_sub:'ຟອນ Phetsarath OT | ຂຽນໄດ້ທຸກຢ່າງ',
+    meta_vcard_title:'vCard ນາມບັດ', meta_vcard_sub:'ນາມບັດດິຈິຕອນ — ສະແກນເພື່ອບັນທຶກຂໍ້ມູນ',
+    meta_email_title:'ອີເມລ', meta_email_sub:'ເປີດແອັບເມລພ້ອມຂໍ້ຄວາມ',
+    meta_sms_title:'ຂໍ້ຄວາມ SMS', meta_sms_sub:'ເປີດແອັບ SMS ພ້ອມຂໍ້ຄວາມ',
+    meta_wifi_title:'ເຄືອຂ່າຍ WiFi', meta_wifi_sub:'ສະແກນເພື່ອເຊື່ອມຕໍ່ WiFi ທັນທີ',
+    meta_bitcoin_title:'ການຊຳລະ Crypto', meta_bitcoin_sub:'ຮັບການຊຳລະດ້ວຍເງິນດິຈິຕອນ',
+    meta_twitter_title:'X / Twitter', meta_twitter_sub:'ລິ້ງໂປຣໄຟລ ຫຼື ທວີດ',
+    meta_pdf_title:'ເອກະສານ PDF', meta_pdf_sub:'ລິ້ງໄຟລ PDF ສຳລັບດາວໂຫຼດ',
+    meta_mp3_title:'ສຽງ / MP3', meta_mp3_sub:'ລິ້ງໄຟລສຽງຫຼືພອດຄາສ',
+    meta_images_title:'ຫ້ອງພາບ', meta_images_sub:'ລິ້ງຮູບພາບ ຫຼື ອາລ໌ບ໌ມ',
+    meta_video_title:'ລິ້ງວິດີໂອ', meta_video_sub:'YouTube, Vimeo, TikTok ແລະ ອື່ນໆ',
+    meta_appstore_title:'App Store', meta_appstore_sub:'ລິ້ງຮ້ານ iOS ຫຼື Google Play',
+    meta_dynamic_title:'URL ແບບ Dynamic', meta_dynamic_sub:'ປ່ຽນ URL ໄດ້ຫຼັງພິມ',
+    meta_facebook_title:'Facebook', meta_facebook_sub:'ລິ້ງໜ້າ Facebook ຂອງທ່ານ',
+    meta_social_title:'ສັງຄົມລວມ', meta_social_sub:'ລວມຫຼາຍສັງຄົມໃນ QR ດຽວ',
+    meta_coupon_title:'ຄູປ໋ອງ / ໂປໂມຊັ່ນ', meta_coupon_sub:'ລະຫັດສ່ວນຫຼຸດດິຈິຕອນ',
+    meta_vcardplus_title:'vCard ພິເສດ', meta_vcardplus_sub:'ຂໍ້ມູນຕິດຕໍ່ລະອຽດ + ຮູບໂປຣໄຟລ',
+    meta_business_title:'ໜ້າທຸລະກິດ', meta_business_sub:'ຂໍ້ມູນທຸລະກິດຄົບຖ້ວນ',
+    meta_feedback_title:'ຟອມຄຳຕິຊົມ', meta_feedback_sub:'ຮັບຄຳຄິດເຫັນ ແລະ ການປະເມີນ',
+    meta_rating_title:'ການໃຫ້ຄະແນນ', meta_rating_sub:'ລິ້ງໄປໜ້າລີວິວໂດຍກົງ',
+    meta_event_title:'ກິດຈະກຳ / ປະຕິທິນ', meta_event_sub:'ບັນທຶກນັດໝາຍໃສ່ປະຕິທິນ',
+    // Labels
+    lbl_website_url:'ທີ່ຢູ່ເວັບໄຊ', lbl_text_content:'ຂໍ້ຄວາມ',
+    lbl_lao_text:'ຂຽນຂໍ້ຄວາມລາວ', lbl_lao_samples:'ປະໂຫຍກຕົວຢ່າງ', lbl_lao_sub:'ຂໍ້ມູນເພີ່ມເຕີມ',
+    lbl_first_name:'ຊື່', lbl_last_name:'ນາມສະກຸນ', lbl_phone:'ເບີໂທລະສັບ',
+    lbl_email:'ທີ່ຢູ່ອີເມລ', lbl_company:'ບໍລິສັດ / ອົງກອນ', lbl_job_title:'ຕຳແໜ່ງງານ',
+    lbl_website:'ເວັບໄຊ', lbl_address:'ທີ່ຢູ່', lbl_recipient_email:'ອີເມລຜູ້ຮັບ',
+    lbl_subject:'ຫົວຂໍ້', lbl_message_body:'ເນື້ອໃນຂໍ້ຄວາມ', lbl_phone_number:'ເບີໂທລະສັບ',
+    lbl_sms_message:'ຂໍ້ຄວາມ SMS', lbl_ssid:'ຊື່ເຄືອຂ່າຍ WiFi', lbl_wifi_pass:'ລະຫັດຜ່ານ',
+    lbl_security:'ປະເພດຄວາມປອດໄພ', lbl_hidden_net:'ເຄືອຂ່າຍຊ່ອນ — ບໍ່ສະແດງ SSID',
+    lbl_crypto:'ສະກຸນເງິນດິຈິຕອນ', lbl_wallet:'ທີ່ຢູ່ Wallet', lbl_amount:'ຈຳນວນ',
+    lbl_pay_label:'ໝາຍເລກອ້າງອີງ', lbl_profile_url:'URL ໂປຣໄຟລ', lbl_tweet_text:'ຂໍ້ຄວາມທວີດ',
+    lbl_pdf_url:'URL ໄຟລ PDF', lbl_doc_title:'ຊື່ເອກະສານ (ທາງເລືອກ)',
+    lbl_audio_url:'URL ໄຟລສຽງ', lbl_track_title:'ຊື່ເພງ', lbl_artist:'ຊື່ນັກສິລະປິນ',
+    lbl_img_url:'URL ຮູບພາບ ຫຼື ອາລ໌ບ໌ມ', lbl_caption:'ຄຳບັນຍາຍ',
+    lbl_video_url:'URL ວິດີໂອ', lbl_video_title:'ຊື່ວິດີໂອ', lbl_app_name:'ຊື່ແອັບ',
+    lbl_ios_url:'App Store (iOS)', lbl_android_url:'Google Play (Android)',
+    lbl_target_url:'URL ເປົ້າໝາຍ', lbl_campaign:'ຊື່ແຄມເປນ', lbl_utm:'UTM Source',
+    lbl_fb_url:'URL ໜ້າ Facebook', lbl_brand:'ຍີ່ຫໍ້ / ບໍລິສັດ',
+    lbl_discount_type:'ປະເພດສ່ວນຫຼຸດ', lbl_value:'ມູນຄ່າ', lbl_coupon_code:'ລະຫັດຄູປ໋ອງ',
+    lbl_valid_until:'ໃຊ້ໄດ້ຮອດວັນທີ', lbl_redeem_url:'URL ໃຊ້ສ່ວນຫຼຸດ',
+    lbl_photo_url:'URL ຮູບໂປຣໄຟລ', lbl_bio:'ໂປຣໄຟລ / ໝາຍເຫດ',
+    lbl_biz_name:'ຊື່ທຸລະກິດ', lbl_category:'ໝວດໝູ່', lbl_hours:'ເວລາເປີດ-ປິດ',
+    lbl_feedback_url:'URL ໜ້າຄຳຕິຊົມ', lbl_review_platform:'ແພລດຟອມລີວິວ',
+    lbl_review_url:'URL ໜ້າລີວິວ', lbl_event_name:'ຊື່ກິດຈະກຳ',
+    lbl_start_dt:'ວັນ-ເວລາເລີ່ມ', lbl_end_dt:'ວັນ-ເວລາສິ້ນສຸດ',
+    lbl_venue:'ສະຖານທີ່', lbl_description:'ຄຳອະທິບາຍ', lbl_organizer_url:'ຜູ້ຈັດ / URL',
+    lbl_qr_color:'ສີ QR', lbl_bg_color:'ສີພື້ນຫຼັງ', lbl_palettes:'ສີໄວ',
+    lbl_ecl:'ການແກ້ໄຂຂໍ້ຜິດພາດ', lbl_size:'ຂະໜາດ:',
+    // Placeholders
+    ph_website_url:'https://ເວັບໄຊຂອງທ່ານ.com',
+    ph_text_content:'ຂຽນຂໍ້ຄວາມທີ່ນີ້... ທຸກພາສາ, emoji 🎉, ສັນຍາລັກ ∞...',
+    ph_lao_text:'ຂຽນຂໍ້ຄວາມລາວທີ່ນີ້... ສາມາດຂຽນພາສາລາວ, ອັງກິດ, ຕົວເລກ, emoji 🎉...',
+    ph_lao_sub:'URL, ເບີໂທ, ຫຼື ຂໍ້ຄວາມ​ອື່ນ...',
+    ph_first_name:'ຊື່ຂອງທ່ານ', ph_last_name:'ນາມສະກຸນຂອງທ່ານ',
+    ph_phone:'020 XX XXX XXX', ph_email:'your@email.com',
+    ph_company:'ຊື່ບໍລິສັດຂອງທ່ານ', ph_job_title:'ຕຳແໜ່ງຂອງທ່ານ',
+    ph_website:'https://ເວັບໄຊຂອງທ່ານ.com', ph_address:'ຖະໜົນ, ເມືອງ, ແຂວງ, ລາວ',
+    ph_recipient_email:'ອີເມລຜູ້ຮັບ', ph_subject:'ຫົວຂໍ້ອີເມລ',
+    ph_message_body:'ຂໍ້ຄວາມອີເມລ...',
+    ph_phone_number:'ເບີໂທຜູ້ຮັບ', ph_sms_message:'ຂໍ້ຄວາມ SMS ຂອງທ່ານ...',
+    ph_ssid:'ຊື່ WiFi ຂອງທ່ານ', ph_wifi_pass:'ລະຫັດ WiFi ຂອງທ່ານ',
+    ph_wallet:'ທີ່ຢູ່ Wallet ຂອງທ່ານ', ph_amount:'0.001', ph_pay_label:'ໃບແຈ້ງໜີ້ / ໝາຍເຫດ',
+    ph_twitter_url:'https://twitter.com/ຊື່ຜູ້ໃຊ້', ph_tweet_text:'ຂໍ້ຄວາມທວີດ...',
+    ph_pdf_url:'https://ຕົວຢ່າງ.com/ເອກະສານ.pdf', ph_doc_title:'ຊື່ເອກະສານ',
+    ph_audio_url:'https://ຕົວຢ່າງ.com/ສຽງ.mp3', ph_track_title:'ຊື່ເພງ', ph_artist:'ຊື່ນັກສິລະປິນ',
+    ph_img_url:'https://ຕົວຢ່າງ.com/ຮູບ.jpg', ph_caption:'ຄຳບັນຍາຍຮູບ',
+    ph_video_url:'https://youtube.com/watch?v=...', ph_video_title:'ຊື່ວິດີໂອ',
+    ph_app_name:'ຊື່ແອັບຂອງທ່ານ', ph_ios_url:'https://apps.apple.com/app/...',
+    ph_android_url:'https://play.google.com/store/apps/...',
+    ph_target_url:'https://ລິ້ງຂອງທ່ານ.com', ph_campaign:'ໂປໂມຊັ່ນ 2025', ph_utm:'ພິມ, ໂປສເຕີ...',
+    ph_fb_url:'https://facebook.com/ໜ້າຂອງທ່ານ', ph_brand:'ຍີ່ຫໍ້ ຫຼື ຮ້ານຄ້າ',
+    ph_value:'ເຊັ່ນ 20', ph_coupon_code:'SAVE20', ph_redeem_url:'https://ຮ້ານ.com/ໃຊ້ສ່ວນຫຼຸດ',
+    ph_photo_url:'https://ເວັບໄຊ.com/ຮູບ.jpg', ph_bio:'ໂປຣໄຟລ​ສັ້ນ...',
+    ph_biz_name:'ຊື່ທຸລະກິດ', ph_biz_address:'ທີ່ຢູ່ທຸລະກິດ',
+    ph_hours:'ຈ-ສ 8:00-17:00, ອາທິດ 9:00-15:00',
+    ph_feedback_url:'https://forms.google.com/...', ph_biz_product:'ຊື່ທຸລະກິດ ຫຼື ສິນຄ້າ',
+    ph_review_url:'https://g.page/r/ທຸລະກິດ/review',
+    ph_event_name:'ຊື່ກິດຈະກຳ', ph_venue:'ສະຖານທີ່ຈັດງານ',
+    ph_event_desc:'ລາຍລະອຽດ ຫຼື ຕາຕະລາງກິດຈະກຳ...', ph_event_url:'https://ໜ້າງານ.com',
+    ph_instagram:'https://instagram.com/ຊື່ຜູ້ໃຊ້', ph_linkedin:'https://linkedin.com/in/ໂປຣໄຟລ',
+    ph_youtube:'https://youtube.com/@ຊ່ອງ', ph_tiktok:'https://tiktok.com/@ຊື່ຜູ້ໃຊ້',
+    // Hints
+    hint_website_url:'ໃສ່ URL ທຸກຊະນິດ — ເວັບໄຊ, ໂຊຊ່ຽວ, ໜ້ານຳ',
+    hint_text_content:'ຮອງຮັບ Unicode ທັງໝົດ — ທຸກພາສາ, emoji, ສັນຍາລັກ ລວມກັນໄດ້',
+    hint_lao_text:'ຮອງຮັບທຸກພາສາ — ລາວ, ອັງກິດ, ຈີນ, ອາຣັບ, emoji ແລະ ສັນຍາລັກ',
+    hint_pdf_url:'ລິ້ງໂດຍກົງຫາໄຟລ PDF ທີ່ເຂົ້າຫາໄດ້ສາທາລະນະ',
+    hint_audio_url:'MP3, WAV, OGG, FLAC — ໄຟລສຽງທຸກຊະນິດ',
+    hint_img_url:'ຮູບດຽວ, ອາລ໌ບ໌ມ, Google Photos, Flickr ຫຼື ລິ້ງຮູບ',
+    hint_video_url:'YouTube, Vimeo, TikTok, Instagram Reels ຫຼື ລິ້ງວິດີໂອທຸກຊະນິດ',
+    hint_appstore:'QR ຈະນຳໄປໜ້າ App Store ທີ່ຖືກຕ້ອງຕາມອຸປະກອນ',
+    hint_dynamic_url:'QR ແບບ Dynamic ສາມາດປ່ຽນ URL ໄດ້ຫຼັງຈາກພິມແລ້ວ',
+    hint_feedback_url:'Google Forms, Typeform, SurveyMonkey ຫຼື URL ຄຳຕິຊົມ',
+    hint_review_url:'ວາງລິ້ງລີວິວໂດຍກົງຈາກແພລດຟອມທີ່ເລືອກ',
+    hint_social:'URL ທຳອິດທີ່ບໍ່ຫວ່າງຈະຖືກໃຊ້ສຳລັບ QR',
+    // Buttons & UI
+    btn_generate:'✦   ສ້າງ QR Code',
+    style_head:'ຮູບຊົງ & ສີສັນ',
+    seg_none:'ບໍ່ມີ (ເປີດ)',
+    opt_percent:'ສ່ວນຫຼຸດ %', opt_fixed:'ຫຼຸດຈຳນວນ​ເງິນ', opt_bogo:'ຊື້ 1 ແຖມ 1', opt_free:'ຂອງຟຣີ',
+    opt_restaurant:'ຮ້ານອາຫານ', opt_retail:'ຮ້ານຄ້າ', opt_health:'ສາທາລະນະສຸກ', opt_hotel:'ໂຮງແຮມ',
+    opt_services:'ບໍລິການ', opt_edu:'ການສຶກສາ', opt_tech:'ເຕັກໂນໂລຊີ', opt_other:'ອື່ນໆ',
+    opt_custom_url:'🔗 URL ກຳນົດເອງ',
+    // Preview
+    preview_live:'ສະໄໝ​ຈິງ', preview_download:'ດາວໂຫຼດ', preview_recent:'ລ່າສຸດ',
+    placeholder_msg:'ໃສ່ຂໍ້ຄວາມ ແລ້ວ QR ຈະສ້າງໃຫ້ທ່ານ',
+    meta_status:'ສະຖານະ', meta_ready:'ພ້ອມ', meta_type:'ປະເພດ', meta_chars:'ຕົວໜັງສື',
+    meta_size_lbl:'ຂະໜາດ', meta_ecl_lbl:'ECL',
+    dl_png:'ດາວໂຫຼດ PNG', dl_copy:'ຄັດລອກ',
+    // Lao picker
+    lao_picker_title:'ຕາຕະລາງຕົວໜັງສືລາວ',
+    lao_tab_con:'ພະຍັນຊະນະ', lao_tab_vow:'ສະຫຼະ', lao_tab_tone:'ວັນນະຍຸດ',
+    lao_tab_num:'ຕົວເລກ', lao_tab_sp:'ພິເສດ',
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let currentLang = 'en';
+let currentType = 'url';
+let wifiSec = 'WPA';
+let qrHistory = [];
+
+// ══════════════════════════════════════════════════════
+// LANG SYSTEM
+// ══════════════════════════════════════════════════════
+function setLang(lang) {
+  currentLang = lang;
+  // Toggle body class for CSS font switching
+  document.body.classList.toggle('lang-lao', lang === 'lo');
+  // Toggle buttons
+  document.getElementById('btnEng').classList.toggle('active', lang === 'en');
+  document.getElementById('btnLao').classList.toggle('active', lang === 'lo');
+
+  const t = T[lang];
+
+  // Translate all [data-t] elements
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const key = el.getAttribute('data-t');
+    if (t[key] !== undefined) {
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        el.placeholder = t[key];
+      } else {
+        el.textContent = t[key];
+      }
+    }
+  });
+
+  // Translate all placeholders [data-ph]
+  document.querySelectorAll('[data-ph]').forEach(el => {
+    const key = el.getAttribute('data-ph');
+    if (t[key] !== undefined) el.placeholder = t[key];
+  });
+
+  // Translate form-header for current type
+  updateFormHeader(currentType);
+
+  // Lao picker tabs always stay in Lao
+  renderLaoChars();
+}
+
+// ══════════════════════════════════════════════════════
+// TYPE SYSTEM
+// ══════════════════════════════════════════════════════
+const typeIcons = {
+  url:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  lao:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`,
+  text:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
+  vcard:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  email:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+  sms:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+  wifi:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`,
+  bitcoin:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2L8.29 4.26m5.908 1.042.348-1.97M7.48 20.364l3.126-17.727"/></svg>`,
+  twitter:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16M4 20L20 4"/><path d="M20 4H16.5L4 20h3.5"/></svg>`,
+  pdf:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`,
+  mp3:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  images:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+  video:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>`,
+  appstore:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+  dynamic:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  facebook:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>`,
+  social:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+  coupon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
+  vcardplus:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  business:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  feedback:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`,
+  rating:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  event:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+};
+
+function updateFormHeader(type) {
+  const t = T[currentLang];
+  const title = t['meta_'+type+'_title'] || type.toUpperCase();
+  const sub   = t['meta_'+type+'_sub']   || '';
+  document.getElementById('formHeaderTitle').textContent = title;
+  document.getElementById('formHeaderSub').textContent = sub;
+  document.getElementById('formHeaderIcon').innerHTML = typeIcons[type] || '';
+}
+
+function selectType(type, btn) {
+  currentType = type;
+  document.querySelectorAll('.menu-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.type-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = document.getElementById('panel-' + type);
+  if (panel) panel.classList.add('active');
+  updateFormHeader(type);
+  liveGenerate();
+  document.getElementById('formArea').scrollTo({top:0,behavior:'smooth'});
+}
+
+function setWifiSec(sec, btn) {
+  wifiSec = sec;
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  liveGenerate();
+}
+
+// ══════════════════════════════════════════════════════
+// BUILD QR CONTENT
+// ══════════════════════════════════════════════════════
+function g(id) { return (document.getElementById(id)||{}).value||''; }
+
+function buildContent() {
+  switch(currentType) {
+    case 'url':     return g('input-url');
+    case 'text':    return g('input-text');
+    case 'lao': {
+      const m=g('lao-text'), s=g('lao-sub');
+      return s ? m+'\n'+s : m;
+    }
+    case 'vcard': {
+      const fn=g('vc-first'),ln=g('vc-last'),ph=g('vc-phone'),em=g('vc-email');
+      if(!fn&&!ln&&!ph&&!em) return '';
+      return `BEGIN:VCARD\nVERSION:3.0\nN:${ln};${fn}\nFN:${fn} ${ln}\n${g('vc-title')?'TITLE:'+g('vc-title')+'\n':''}${ph?'TEL:'+ph+'\n':''}${em?'EMAIL:'+em+'\n':''}${g('vc-org')?'ORG:'+g('vc-org')+'\n':''}${g('vc-url')?'URL:'+g('vc-url')+'\n':''}${g('vc-addr')?'ADR:;;'+g('vc-addr')+';;;;\n':''}END:VCARD`;
+    }
+    case 'email': { const to=g('em-to'); if(!to) return ''; return `mailto:${to}?subject=${encodeURIComponent(g('em-sub'))}&body=${encodeURIComponent(g('em-body'))}`; }
+    case 'sms': { const n=g('sms-num'); if(!n) return ''; return `smsto:${n}:${g('sms-msg')}`; }
+    case 'wifi': { const s=g('wifi-ssid'); if(!s) return ''; return `WIFI:T:${wifiSec};S:${s};P:${g('wifi-pass')};H:${document.getElementById('wifi-hidden')?.checked?'true':'false'};;`; }
+    case 'bitcoin': {
+      const addr=g('btc-addr'); if(!addr) return '';
+      const cur=g('btc-currency')||'BTC', proto=cur==='BTC'?'bitcoin':cur.toLowerCase();
+      const p=[]; if(g('btc-amount')) p.push('amount='+g('btc-amount')); if(g('btc-note')) p.push('label='+encodeURIComponent(g('btc-note')));
+      return `${proto}:${addr}${p.length?'?'+p.join('&'):''}`;
+    }
+    case 'twitter': { const u=g('tw-url'),tx=g('tw-text'); if(tx&&!u) return `https://twitter.com/intent/tweet?text=${encodeURIComponent(tx)}`; return u||tx; }
+    case 'pdf':      return g('pdf-url');
+    case 'mp3':      return g('mp3-url');
+    case 'images':   return g('img-url');
+    case 'video':    return g('vid-url');
+    case 'appstore': return g('app-ios')||g('app-android');
+    case 'dynamic':  return g('dyn-url');
+    case 'facebook': return g('fb-url');
+    case 'social':   return g('soc-ig')||g('soc-li')||g('soc-yt')||g('soc-tt');
+    case 'coupon': {
+      const br=g('cp-brand'),co=g('cp-code'); if(!br&&!co) return '';
+      if(g('cp-url')) return g('cp-url');
+      return `COUPON:BRAND:${br};CODE:${co};TYPE:${g('cp-type')};VALUE:${g('cp-val')};EXP:${g('cp-exp')}`;
+    }
+    case 'vcardplus': {
+      const fn=g('vcp-first'),ln=g('vcp-last'); if(!fn&&!ln) return '';
+      return `BEGIN:VCARD\nVERSION:3.0\nN:${ln};${fn}\nFN:${fn} ${ln}\n${g('vcp-title')?'TITLE:'+g('vcp-title')+'\n':''}${g('vcp-org')?'ORG:'+g('vcp-org')+'\n':''}${g('vcp-phone')?'TEL:'+g('vcp-phone')+'\n':''}${g('vcp-email')?'EMAIL:'+g('vcp-email')+'\n':''}${g('vcp-web')?'URL:'+g('vcp-web')+'\n':''}${g('vcp-photo')?'PHOTO;VALUE=URI:'+g('vcp-photo')+'\n':''}${g('vcp-bio')?'NOTE:'+g('vcp-bio')+'\n':''}END:VCARD`;
+    }
+    case 'business': {
+      const nm=g('biz-name'); if(!nm) return '';
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${nm}\nORG:${nm}\n${g('biz-phone')?'TEL:'+g('biz-phone')+'\n':''}${g('biz-addr')?'ADR:;;'+g('biz-addr')+';;;;\n':''}${g('biz-web')?'URL:'+g('biz-web')+'\n':''}${g('biz-hours')?'NOTE:Hours: '+g('biz-hours')+'\n':''}${g('biz-cat')?'CATEGORIES:'+g('biz-cat')+'\n':''}END:VCARD`;
+    }
+    case 'feedback': return g('fb2-url');
+    case 'rating':   return g('rat-url');
+    case 'event': {
+      const nm=g('ev-name'); if(!nm) return '';
+      const fmt=s=>s?s.replace(/[-:T]/g,'').slice(0,15)+'Z':'';
+      return `BEGIN:VEVENT\nSUMMARY:${nm}\n${g('ev-start')?'DTSTART:'+fmt(g('ev-start'))+'\n':''}${g('ev-end')?'DTEND:'+fmt(g('ev-end'))+'\n':''}${g('ev-loc')?'LOCATION:'+g('ev-loc')+'\n':''}${g('ev-desc')?'DESCRIPTION:'+g('ev-desc')+'\n':''}${g('ev-url')?'URL:'+g('ev-url')+'\n':''}END:VEVENT`;
+    }
+    default: return '';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// QR GENERATION
+// ══════════════════════════════════════════════════════
+let liveTimer;
+function liveGenerate() {
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(()=>{ const c=buildContent(); if(c&&c.trim()) doGenerate(c); }, 280);
+}
+
+function generateQR() {
+  const content = buildContent();
+  const t = T[currentLang];
+  if (!content||!content.trim()) { showToast('⚠ ' + (currentLang==='lo'?'ກະລຸນາໃສ່ຂໍ້ມູນ':'Please fill in the required fields')); return; }
+  doGenerate(content);
+  addToHistory(content);
+  showToast(currentLang==='lo'?'✦ ສ້າງ QR Code ສຳເລັດ':'✦ QR code generated successfully');
+}
+
+function doGenerate(content) {
+  if(!content||!content.trim()) return;
+  var fg=g('qr-fg')||'#000000', bg=g('qr-bg')||'#ffffff';
+  var size=parseInt(g('qr-size'))||256, ecl=g('qr-ecl')||'M';
+  var out=document.getElementById('qr-output');
+  out.innerHTML='';
+  var byteLen=new TextEncoder().encode(content).length;
+  // Auto-lower ECL for long content (Lao = 3 bytes/char)
+  var useEcl=ecl;
+  if(byteLen>2331) useEcl='L';
+  else if(byteLen>1663&&(ecl==='H'||ecl==='Q')) useEcl='M';
+  else if(byteLen>1273&&ecl==='H') useEcl='Q';
+  try {
+    var cv=QRLib.drawCanvas(content,{errorCorrectionLevel:useEcl,width:Math.min(size,300),margin:2,dark:fg,light:bg});
+    if(!cv){out.innerHTML='<div style="color:#c94c4c;padding:20px;text-align:center;font-size:12px;line-height:1.8">'+(currentLang==='lo'?'⚠ ຂໍ້ຄວາມຍາວເກີນ — ລອງຕັດໃຫ້ສັ້ນ':'⚠ Content too long — shorten text or use ECL L')+'</div>';return;}
+    cv.style.cssText='border-radius:6px;max-width:90%;max-height:90%;display:block';
+    out.appendChild(cv);
+    document.getElementById('qrMeta').style.display='block';
+    document.getElementById('meta-type').textContent=currentType.toUpperCase();
+    document.getElementById('meta-chars').textContent=content.length+' / '+byteLen+' bytes';
+    document.getElementById('meta-size').textContent=size+'x'+size;
+    document.getElementById('meta-ecl').textContent=useEcl+' ('+{L:'7%',M:'15%',Q:'25%',H:'30%'}[useEcl]+')';
+  } catch(e) {
+    out.innerHTML='<div style="color:#c94c4c;padding:20px;text-align:center;font-size:12px">⚠ '+e+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// COLORS
+// ══════════════════════════════════════════════════════
+function syncColor(w,v){
+  document.getElementById(w==='fg'?'fgBg':'bgBg').style.background=v;
+  document.getElementById(w+'-hex').value=v;
+}
+function hexInput(w){
+  const v=document.getElementById(w+'-hex').value;
+  if(/^#[0-9A-Fa-f]{6}$/.test(v)){document.getElementById('qr-'+w).value=v;document.getElementById(w+'Bg').style.background=v;liveGenerate();}
+}
+function applyPreset(fg,bg){
+  document.getElementById('qr-fg').value=fg; document.getElementById('qr-bg').value=bg;
+  syncColor('fg',fg); syncColor('bg',bg); liveGenerate();
+}
+
+// ══════════════════════════════════════════════════════
+// DOWNLOAD
+// ══════════════════════════════════════════════════════
+function getCanvas(){return document.querySelector('#qr-output canvas');}
+function downloadQR(fmt){
+  const c=getCanvas();
+  if(!c){showToast('⚠ '+(currentLang==='lo'?'ສ້າງ QR ກ່ອນ':'Generate a QR code first'));return;}
+  if(fmt==='svg'){
+    const d=c.toDataURL('image/png'), sz=parseInt(g('qr-size'))||256;
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}"><image href="${d}" width="${sz}" height="${sz}"/></svg>`;
+    const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+    triggerDl(url,'qrux-code.svg'); URL.revokeObjectURL(url);
+    showToast('SVG downloaded'); return;
+  }
+  triggerDl(c.toDataURL(fmt==='jpeg'?'image/jpeg':'image/png',0.95),`qrux-${currentType}.${fmt==='jpeg'?'jpg':'png'}`);
+  showToast(fmt.toUpperCase()+' downloaded');
+}
+function copyQR(){
+  const c=getCanvas();
+  if(!c){showToast('⚠ Generate a QR code first');return;}
+  c.toBlob(b=>navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(()=>showToast(currentLang==='lo'?'ຄັດລອກແລ້ວ':'Copied to clipboard')));
+}
+function triggerDl(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();}
+
+// ══════════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════════
+function addToHistory(content){
+  const c=getCanvas();
+  qrHistory.unshift({type:currentType.toUpperCase(),content,time:new Date().toLocaleTimeString(),img:c?c.toDataURL():null});
+  if(qrHistory.length>8) qrHistory.pop();
+  renderHistory();
+}
+function renderHistory(){
+  const sec=document.getElementById('historySection'), list=document.getElementById('historyList');
+  if(!qrHistory.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  list.innerHTML=qrHistory.map((item,i)=>`
+    <div class="hist-item">
+      <div class="hist-thumb">${item.img?`<img src="${item.img}" alt="qr">`:'<span style="font-size:16px;opacity:.3">⌗</span>'}</div>
+      <div class="hist-info">
+        <div class="hist-type">${item.type}</div>
+        <div class="hist-content">${esc(item.content.substring(0,40))}${item.content.length>40?'…':''}</div>
+      </div>
+      <div class="hist-actions">
+        <button class="hist-mini-btn" onclick="reloadHist(${i})" title="Reload">↺</button>
+        <button class="hist-mini-btn" onclick="dlHist(${i})" title="Download">↓</button>
+      </div>
+    </div>`).join('');
+}
+function reloadHist(i){if(qrHistory[i]) doGenerate(qrHistory[i].content);}
+function dlHist(i){const it=qrHistory[i];if(it&&it.img) triggerDl(it.img,`qrux-${it.type.toLowerCase()}.png`);}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ══════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════
+let toastT;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-msg').textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ══════════════════════════════════════════════════════
+// CURSOR
+// ══════════════════════════════════════════════════════
+const cur=document.getElementById('cursor'), ring=document.getElementById('cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function anim(){rx+=(mx-rx)*.11;ry+=(my-ry)*.11;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(anim);})();
+document.querySelectorAll('button,a,input,textarea,select,.preset-swatch,.hist-item,.menu-item,.dl-btn').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='18px';cur.style.height='18px';ring.style.width='52px';ring.style.height='52px';});
+  el.addEventListener('mouseleave',()=>{cur.style.width='10px';cur.style.height='10px';ring.style.width='32px';ring.style.height='32px';});
+});
+
+// ══════════════════════════════════════════════════════
+// LAO CHARACTER PICKER
+// ══════════════════════════════════════════════════════
+const laoChars = {
+  consonants:['ກ','ຂ','ຄ','ງ','ຈ','ສ','ຊ','ຍ','ດ','ຕ','ຖ','ທ','ນ','ບ','ປ','ຜ','ຝ','ພ','ຟ','ມ','ຢ','ຣ','ລ','ວ','ຫ','ອ','ຮ','ຯ'],
+  vowels:['າ','ິ','ີ','ຶ','ື','ຸ','ູ','ເ','ແ','ໂ','ໄ','ໃ','ົ','ຼ','ັ','ໍ','ຳ','ໍາ','ຽ','ເຍ','ເຍຍ','ວ','ເັ','ເ_າ','ແ_ວ'],
+  tones:['່','້','໊','໋','ໝ','ໜ'],
+  numbers:['໐','໑','໒','໓','໔','໕','໖','໗','໘','໙','0','1','2','3','4','5','6','7','8','9'],
+  special:['ຯ','ໆ','฿','₭','₿','%','@','#','&','*','!','?','.','…',',',':',';','"',"'",'(',')','-','_','+','=','🙏','🎉','❤️','✅','📍','☎','🌐','💰','🏮','🌸','😊','🎊','🔥','⭐']
+};
+let currentLaoCat='consonants';
+function showLaoCat(cat,btn){
+  currentLaoCat=cat;
+  document.querySelectorAll('.lao-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderLaoChars();
+}
+function renderLaoChars(){
+  const grid=document.getElementById('laoCharGrid');
+  if(!grid) return;
+  grid.innerHTML=(laoChars[currentLaoCat]||[]).map(c=>`<button class="lao-char-btn" onclick="insertLaoChar('${c.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">&#x200B;${c}</button>`).join('');
+}
+function insertLaoChar(ch){
+  const ta=document.getElementById('lao-text'); if(!ta) return;
+  const s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;
+  ta.value=v.slice(0,s)+ch+v.slice(e);
+  ta.selectionStart=ta.selectionEnd=s+ch.length;
+  ta.focus(); liveGenerate();
+}
+function insertLaoSample(text){
+  const ta=document.getElementById('lao-text'); if(!ta) return;
+  const s=ta.selectionStart,v=ta.value;
+  const pre=v.slice(0,s),suf=v.slice(s);
+  const sp=(pre&&!pre.endsWith('\n')?' ':'');
+  ta.value=pre+sp+text+suf;
+  ta.selectionStart=ta.selectionEnd=s+sp.length+text.length;
+  ta.focus(); liveGenerate();
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+updateFormHeader('url');
+renderLaoChars();
+document.getElementById('input-url').value='https://qrux.studio';
+liveGenerate();
+</script>
+</body>
+</html>
